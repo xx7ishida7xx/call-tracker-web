@@ -49,12 +49,15 @@ export async function addCall(
   leadId: string,
   payload: {
     result: string;
+    result_group: string | null;
     notes: string;
     appointment: boolean;
     connected: boolean;
     recall_at: string | null;
     recall_target: string | null;
     next_status: string;
+    rank: string | null;
+    hot: boolean;
   }
 ) {
   const supabase = await createClient();
@@ -65,11 +68,14 @@ export async function addCall(
     lead_id: leadId,
     caller_id: me.id,
     result: payload.result,
+    result_group: payload.result_group,
     notes: payload.notes,
     appointment: payload.appointment,
     connected: payload.connected,
     recall_at: payload.recall_at,
     recall_target: payload.recall_target,
+    rank: payload.rank,
+    hot: payload.hot,
   });
   if (callError) throw new Error(callError.message);
 

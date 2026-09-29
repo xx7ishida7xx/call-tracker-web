@@ -10,6 +10,11 @@ import {
   DEFAULT_CONTRACT_PRODUCTS,
   CMS_MAIN_OPTIONS,
   CMS_OTHER_SUBOPTIONS,
+  CALL_RESULT_GROUP_ORDER,
+  CALL_RESULT_GROUPS,
+  CALL_RANKS,
+  getCallOutcome,
+  type CallOutcome,
   type Lead,
   type Profile,
   type Call,
@@ -147,45 +152,80 @@ export default function LeadDetailClient({
     });
   }
 
-  // 通話記録フォーム
+  // 通話記録フォーム：結果は「つながらなかった／つながった／その他／訪問結果」の
+  // 4グループから1つだけ選ぶ形式。結果を選ぶと有効架電・アポ獲得・ステータスが
+  // 自動で連動するため、それらを個別に指定する項目はない。
   const [callForm, setCallForm] = useState({
+    resultGroup: "",
     result: "",
+    usingFreeText: false,
+    freeText: "",
     notes: "",
-    appointment: false,
-    connected: false,
     recall_at: "",
     recall_target: "",
-    next_status: lead.status,
+    rank: "",
+    hot: false,
   });
   const [callError, setCallError] = useState<string | null>(null);
 
+  function selectResult(group: string, label: string) {
+    setCallForm((f) => ({ ...f, resultGroup: group, result: label, usingFreeText: false }));
+  }
+
+  function selectFreeText() {
+    setCallForm((f) => ({ ...f, resultGroup: "その他", usingFreeText: true, result: f.freeText }));
+  }
+
+  function updateFreeText(value: string) {
+    setCallForm((f) => ({ ...f, resultGroup: "その他", usingFreeText: true, freeText: value, result: value }));
+  }
+
   function submitCall() {
     setCallError(null);
+    if (!callForm.resultGroup || !callForm.result.trim()) {
+      setCallError("結果を選択してください。");
+      return;
+    }
+    const outcome = getCallOutcome(callForm.resultGroup, callForm.result);
+    const nextStatus = outcome.nextStatus ?? lead.status;
     startTransition(async () => {
       try {
         await addCall(lead.id, {
           result: callForm.result,
+          result_group: callForm.resultGroup,
           notes: callForm.notes,
-          appointment: callForm.appointment,
-          connected: callForm.connected,
+          appointment: outcome.appointment,
+          connected: outcome.connected,
           recall_at: callForm.recall_at ? new Date(callForm.recall_at).toISOString() : null,
           recall_target: callForm.recall_target || null,
-          next_status: callForm.next_status,
+          next_status: nextStatus,
+          rank: callForm.rank || null,
+          hot: callForm.hot,
         });
-        setForm((f) => ({ ...f, status: callForm.next_status }));
+        setForm((f) => ({ ...f, status: nextStatus }));
         setCallForm({
+          resultGroup: "",
           result: "",
+          usingFreeText: false,
+          freeText: "",
           notes: "",
-          appointment: false,
-          connected: false,
           recall_at: "",
           recall_target: "",
-          next_status: callForm.next_status,
+          rank: "",
+          hot: false,
         });
       } catch (e) {
         setCallError(e instanceof Error ? e.message : "登録に失敗しました。");
       }
     });
+  }
+
+  // 結果を選んだ後、有効架電・アポ獲得・ステータスがどう連動するかのプレビュー文
+  function outcomeSummary(outcome: CallOutcome): string {
+    const parts = [outcome.connected ? "有効架電：ON" : "有効架電：OFF"];
+    if (outcome.appointment) parts.push("アポ獲得：ON");
+    parts.push(outcome.nextStatus ? `ステータス → ${outcome.nextStatus}` : "ステータス：変更なし");
+    return parts.join("／");
   }
 
   return (
@@ -347,14 +387,83 @@ export default function LeadDetailClient({
         <section className={`${cardCls} p-5`}>
           <h2 className={`mb-4 ${sectionTitleCls}`}>通話を記録する</h2>
           <div className="flex flex-col gap-3">
-            <Field label="結果">
-              <input
-                className={inputCls}
-                placeholder="例：担当者不在、要再架電、興味あり など"
-                value={callForm.result}
-                onChange={(e) => setCallForm((f) => ({ ...f, result: e.target.value }))}
-              />
-            </Field>
+            <div>
+              <p className={`mb-2 ${labelCls}`}>結果</p>
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                {CALL_RESULT_GROUP_ORDER.map((group) => (
+                  <div key={group} className="rounded-lg border border-slate-200 p-3">
+                    <p className="mb-2 text-xs font-bold text-slate-500">{group}</p>
+                    <div className="flex flex-col gap-1.5">
+                      {CALL_RESULT_GROUPS[group].map((label) => (
+                        <label key={label} className="flex items-center gap-2 text-sm text-slate-700">
+                          <input
+                            type="radio"
+                            name="call-result"
+                            className="h-4 w-4 shrink-0 border-slate-300 text-orange-600 focus:ring-orange-500"
+                            checked={!callForm.usingFreeText && callForm.resultGroup === group && callForm.result === label}
+                            onChange={() => selectResult(group, label)}
+                          />
+                          {label}
+                        </label>
+                      ))}
+                      {group === "その他" && (
+                        <label className="flex items-center gap-2 text-sm text-slate-700">
+                          <input
+                            type="radio"
+                            name="call-result"
+                            className="h-4 w-4 shrink-0 border-slate-300 text-orange-600 focus:ring-orange-500"
+                            checked={callForm.usingFreeText}
+                            onChange={selectFreeText}
+                          />
+                          <input
+                            type="text"
+                            placeholder="自由入力"
+                            className={`${inputCls} py-1`}
+                            value={callForm.freeText}
+                            onChange={(e) => updateFreeText(e.target.value)}
+                            onFocus={selectFreeText}
+                          />
+                        </label>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+              {callForm.resultGroup && callForm.result.trim() && (
+                <p className="mt-2 text-xs text-slate-400">
+                  {outcomeSummary(getCallOutcome(callForm.resultGroup, callForm.result))}
+                </p>
+              )}
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <Field label="ランク">
+                <select
+                  className={inputCls}
+                  value={callForm.rank}
+                  onChange={(e) => setCallForm((f) => ({ ...f, rank: e.target.value }))}
+                >
+                  <option value="">なし</option>
+                  {CALL_RANKS.map((r) => (
+                    <option key={r} value={r}>
+                      {r}
+                    </option>
+                  ))}
+                </select>
+              </Field>
+              <div className="flex items-end pb-2.5">
+                <label className="flex items-center gap-2 text-sm font-semibold text-rose-600">
+                  <input
+                    type="checkbox"
+                    className="h-4 w-4 rounded border-slate-300 text-rose-600 focus:ring-rose-500"
+                    checked={callForm.hot}
+                    onChange={(e) => setCallForm((f) => ({ ...f, hot: e.target.checked }))}
+                  />
+                  激アツ!!
+                </label>
+              </div>
+            </div>
+
             <Field label="メモ">
               <textarea
                 className={inputCls}
@@ -379,41 +488,6 @@ export default function LeadDetailClient({
                   onChange={(e) => setCallForm((f) => ({ ...f, recall_target: e.target.value }))}
                 />
               </Field>
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <Field label="更新後のステータス">
-                <select
-                  className={inputCls}
-                  value={callForm.next_status}
-                  onChange={(e) => setCallForm((f) => ({ ...f, next_status: e.target.value }))}
-                >
-                  {LEAD_STATUSES.map((s) => (
-                    <option key={s} value={s}>
-                      {s}
-                    </option>
-                  ))}
-                </select>
-              </Field>
-              <div className="flex items-end gap-4 pb-2.5">
-                <label className="flex items-center gap-2 text-sm text-slate-700">
-                  <input
-                    type="checkbox"
-                    className="h-4 w-4 rounded border-slate-300 text-orange-600 focus:ring-orange-500"
-                    checked={callForm.connected}
-                    onChange={(e) => setCallForm((f) => ({ ...f, connected: e.target.checked }))}
-                  />
-                  有効架電（担当者と話せた）
-                </label>
-                <label className="flex items-center gap-2 text-sm text-slate-700">
-                  <input
-                    type="checkbox"
-                    className="h-4 w-4 rounded border-slate-300 text-orange-600 focus:ring-orange-500"
-                    checked={callForm.appointment}
-                    onChange={(e) => setCallForm((f) => ({ ...f, appointment: e.target.checked }))}
-                  />
-                  アポ獲得
-                </label>
-              </div>
             </div>
 
             {callError && <p className={errorCls}>{callError}</p>}
@@ -537,6 +611,12 @@ export default function LeadDetailClient({
                   )}
                   {c.appointment && (
                     <span className="rounded-full bg-amber-100 px-2 py-0.5 font-semibold text-amber-800">アポ獲得</span>
+                  )}
+                  {c.hot && (
+                    <span className="rounded-full bg-rose-100 px-2 py-0.5 font-semibold text-rose-700">激アツ!!</span>
+                  )}
+                  {c.rank && (
+                    <span className="rounded-full bg-violet-100 px-2 py-0.5 font-semibold text-violet-700">ランク{c.rank}</span>
                   )}
                 </div>
                 {c.result && <p className="mt-1 text-sm text-slate-800">{c.result}</p>}

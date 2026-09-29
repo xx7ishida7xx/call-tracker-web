@@ -112,13 +112,77 @@ export interface Call {
   caller_id: string | null;
   called_at: string;
   result: string;
+  result_group: string | null; // 結果を選んだ際のグループ（つながらなかった／つながった／その他／訪問結果）
   recall_at: string | null;
   recall_target: string | null;
   appointment: boolean;
   connected: boolean; // 有効架電（担当者と話せた）かどうか
   notes: string;
+  rank: string | null; // 通話ごとの見込み度ランク（A/B/C/D、未選択はnull）
+  hot: boolean; // 「激アツ!!」フラグ
   created_at: string;
 }
+
+// ==========================================================================
+// コール結果taxonomy（Round 2）
+// つながらなかった／つながった／その他／訪問結果 の4グループに結果を分類し、
+// 結果を選ぶと「有効架電」「アポ獲得」「ステータス」が自動で連動する。
+// ==========================================================================
+
+export type CallOutcome = { connected: boolean; appointment: boolean; nextStatus: string | null };
+
+export const CALL_RESULT_GROUP_ORDER = ["つながらなかった", "つながった", "その他", "訪問結果"] as const;
+export type CallResultGroup = (typeof CALL_RESULT_GROUP_ORDER)[number];
+
+export const CALL_RESULT_GROUPS: Record<CallResultGroup, readonly string[]> = {
+  つながらなかった: ["留守", "廃業", "再コール"],
+  つながった: ["フロントNG", "代表NG", "追わない", "再コール", "前確依頼", "前確NG", "アポ成立"],
+  その他: ["結果待ち", "キャンセル"],
+  訪問結果: ["受注", "追客", "検討", "第三者商談", "先々", "失注"],
+};
+
+// 「つながらなかった」の再コールと「つながった」の再コールは、表示は同じ「再コール」だが
+// グループが違うため別物として区別して保存・連動される（result_group列で区別する）。
+// nextStatus が null の場合は「ステータスは変更しない」を意味する。
+export const CALL_RESULT_OUTCOME: Record<CallResultGroup, Record<string, CallOutcome>> = {
+  つながらなかった: {
+    留守: { connected: false, appointment: false, nextStatus: null },
+    廃業: { connected: false, appointment: false, nextStatus: "対象外" },
+    再コール: { connected: false, appointment: false, nextStatus: null },
+  },
+  つながった: {
+    フロントNG: { connected: true, appointment: false, nextStatus: "見送り" },
+    代表NG: { connected: true, appointment: false, nextStatus: "見送り" },
+    追わない: { connected: true, appointment: false, nextStatus: "見送り" },
+    再コール: { connected: true, appointment: false, nextStatus: null },
+    前確依頼: { connected: true, appointment: false, nextStatus: null },
+    前確NG: { connected: true, appointment: false, nextStatus: "見送り" },
+    アポ成立: { connected: true, appointment: true, nextStatus: "アポ獲得" },
+  },
+  その他: {
+    結果待ち: { connected: false, appointment: false, nextStatus: null },
+    キャンセル: { connected: false, appointment: false, nextStatus: "見送り" },
+  },
+  訪問結果: {
+    受注: { connected: true, appointment: false, nextStatus: "成約" },
+    追客: { connected: true, appointment: false, nextStatus: null },
+    検討: { connected: true, appointment: false, nextStatus: null },
+    第三者商談: { connected: true, appointment: false, nextStatus: null },
+    先々: { connected: true, appointment: false, nextStatus: null },
+    失注: { connected: true, appointment: false, nextStatus: "見送り" },
+  },
+};
+
+// その他グループの自由入力欄を選んだ場合の自動連動（定型結果に一致しない場合のフォールバックにも使う）
+export const FREE_TEXT_OUTCOME: CallOutcome = { connected: false, appointment: false, nextStatus: null };
+
+export function getCallOutcome(group: string, result: string): CallOutcome {
+  const table = CALL_RESULT_OUTCOME[group as CallResultGroup];
+  return (table && table[result]) || FREE_TEXT_OUTCOME;
+}
+
+// 通話ごとの見込み度ランク（「なし」は空文字列/nullとして扱う）
+export const CALL_RANKS = ["A", "B", "C", "D"] as const;
 
 export const LEAD_STATUSES = [
   "未着手",
