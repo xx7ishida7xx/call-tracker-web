@@ -4,6 +4,10 @@ import { getCurrentProfile } from "@/lib/auth";
 import type { Profile } from "@/lib/types";
 import ImportClient from "./ImportClient";
 
+// 大きめのCSV（数千件）を一度に取り込めるよう、サーバー側の実行時間の上限を延長しています
+// （デプロイ先のプランによっては、この値まで届かない場合もあります）
+export const maxDuration = 60;
+
 export default async function ImportPage() {
   const me = await getCurrentProfile();
   if (!me) return null;
