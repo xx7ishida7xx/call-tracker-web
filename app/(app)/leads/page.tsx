@@ -152,12 +152,14 @@ export default async function LeadsPage({ searchParams }: { searchParams: Promis
     if (cmsList.length > 0) query = query.in("cms", cmsList);
     if (sp.recall_from) query = query.gte("recall_at", new Date(`${sp.recall_from}T00:00:00`).toISOString());
     if (sp.recall_to) query = query.lte("recall_at", new Date(`${sp.recall_to}T23:59:59`).toISOString());
-    if (sp.has_url === "yes") query = query.not("url", "is", null).neq("url", "");
-    if (sp.has_url === "no") query = query.or("url.is.null,url.eq.");
-    if (sp.has_meo === "yes") query = query.contains("contracts", [{ product: "MEO" }]);
-    if (sp.has_meo === "no") query = query.not("contracts", "cs", JSON.stringify([{ product: "MEO" }]));
-    if (sp.has_sns === "yes") query = query.contains("contracts", [{ product: "SNS運用" }]);
-    if (sp.has_sns === "no") query = query.not("contracts", "cs", JSON.stringify([{ product: "SNS運用" }]));
+    // ホームページ／MEO／SNS運用の有無は、契約状況の該当する商材の行で「有」チェックが
+    // 入っているかどうかで判定する（商材名が入っているだけでは「有」にならない）
+    if (sp.has_url === "yes") query = query.contains("contracts", [{ product: "HP", active: true }]);
+    if (sp.has_url === "no") query = query.not("contracts", "cs", JSON.stringify([{ product: "HP", active: true }]));
+    if (sp.has_meo === "yes") query = query.contains("contracts", [{ product: "MEO", active: true }]);
+    if (sp.has_meo === "no") query = query.not("contracts", "cs", JSON.stringify([{ product: "MEO", active: true }]));
+    if (sp.has_sns === "yes") query = query.contains("contracts", [{ product: "SNS運用", active: true }]);
+    if (sp.has_sns === "no") query = query.not("contracts", "cs", JSON.stringify([{ product: "SNS運用", active: true }]));
     if (sp.acquisition_desire) query = query.eq("acquisition_desire", sp.acquisition_desire);
     if (callLeadIds !== null) {
       query = query.in("id", callLeadIds.length > 0 ? callLeadIds : ["00000000-0000-0000-0000-000000000000"]);

@@ -125,12 +125,15 @@ export default function LeadDetailClient({
   }
 
   // 契約状況：HP・MEO・SNS運用など、商材ごとに複数行を管理します
+  // （「有」チェックがまだ無かった時期に保存されたデータは active が undefined になっているため、
+  //   falseで補って読み込む）
   const [contracts, setContracts] = useState<ContractItem[]>(() =>
     lead.contracts && lead.contracts.length > 0
-      ? lead.contracts
+      ? lead.contracts.map((c) => ({ ...c, active: c.active ?? false }))
       : DEFAULT_CONTRACT_PRODUCTS.map((product) => ({
           product,
           company: "",
+          active: false,
           billing_type: "",
           monthly_fee: "",
           period: "",
@@ -143,7 +146,10 @@ export default function LeadDetailClient({
   }
 
   function addContractRow() {
-    setContracts((list) => [...list, { product: "", company: "", billing_type: "", monthly_fee: "", period: "" }]);
+    setContracts((list) => [
+      ...list,
+      { product: "", company: "", active: false, billing_type: "", monthly_fee: "", period: "" },
+    ]);
   }
 
   function removeContractRow(index: number) {
@@ -543,6 +549,7 @@ export default function LeadDetailClient({
               <tr className="border-b border-orange-100 bg-orange-50/60 text-left text-xs font-semibold text-slate-500">
                 <th className="px-3 py-2">商材</th>
                 <th className="px-3 py-2">契約会社名</th>
+                <th className="px-3 py-2">有</th>
                 <th className="px-3 py-2">契約形態</th>
                 <th className="px-3 py-2">月額（円）</th>
                 <th className="px-3 py-2">契約期間</th>
@@ -565,6 +572,15 @@ export default function LeadDetailClient({
                       className={inputCls}
                       value={c.company}
                       onChange={(e) => setContractField(i, "company", e.target.value)}
+                    />
+                  </td>
+                  <td className="px-3 py-2 text-center">
+                    <input
+                      type="checkbox"
+                      title="この商材を契約中（有）の場合はチェック。リード一覧の「◯◯有無」検索はこのチェックで判定します。"
+                      className="h-4 w-4 rounded border-slate-300 text-orange-600 focus:ring-orange-500"
+                      checked={c.active}
+                      onChange={(e) => setContractField(i, "active", e.target.checked)}
                     />
                   </td>
                   <td className="px-3 py-2">
@@ -611,7 +627,7 @@ export default function LeadDetailClient({
               ))}
               {contracts.length === 0 && (
                 <tr>
-                  <td colSpan={6} className="px-3 py-6 text-center text-slate-400">
+                  <td colSpan={7} className="px-3 py-6 text-center text-slate-400">
                     「+ 商材を追加」から契約情報を登録できます
                   </td>
                 </tr>

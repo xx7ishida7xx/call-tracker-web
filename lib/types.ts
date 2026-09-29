@@ -66,6 +66,7 @@ export const ACQUISITION_DESIRE_OPTIONS = ["有", "無"] as const;
 export interface ContractItem {
   product: string; // 商材名（例：HP、MEO、SNS運用）
   company: string; // 契約会社名
+  active: boolean; // この商材を契約中（有）かどうか。リード一覧の「◯◯有無」検索はこのチェックを見て判定する
   billing_type: string; // 契約形態（サブスク／割賦 など）
   monthly_fee: string; // 月額（円）
   period: string; // 契約期間（例：2026/10〜2027/09、12ヶ月 など自由記入）
