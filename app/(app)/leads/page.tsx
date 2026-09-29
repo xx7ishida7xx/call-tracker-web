@@ -210,27 +210,6 @@ export default async function LeadsPage({ searchParams }: { searchParams: Promis
     return s ? `/leads?${s}` : "/leads";
   }
 
-  const anyFilterSet =
-    !!sp.company ||
-    !!sp.phone_prefix ||
-    !!sp.rep ||
-    !!sp.credit_company ||
-    !!sp.status ||
-    !!sp.assignee ||
-    genreList.length > 0 ||
-    prefList.length > 0 ||
-    cmsList.length > 0 ||
-    !!sp.caller ||
-    !!sp.call_result ||
-    !!sp.call_rank ||
-    sp.call_hot === "1" ||
-    !!sp.recall_from ||
-    !!sp.recall_to ||
-    !!sp.has_url ||
-    !!sp.has_meo ||
-    !!sp.has_sns ||
-    !!sp.acquisition_desire;
-
   return (
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -422,11 +401,9 @@ export default async function LeadsPage({ searchParams }: { searchParams: Promis
           <button type="submit" className={btnAccentCls}>
             検索
           </button>
-          {(hasSearched || anyFilterSet) && (
-            <Link href="/leads" className="text-xs font-medium text-slate-500 underline underline-offset-2 hover:text-orange-600">
-              条件をクリア
-            </Link>
-          )}
+          <Link href="/leads" className={btnSecondarySmCls}>
+            リセット
+          </Link>
         </div>
       </form>
 
