@@ -11,10 +11,13 @@ export default function LoginPage() {
     <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-orange-50 via-white to-amber-50 px-4">
       <div className="w-full max-w-sm rounded-2xl border border-slate-200 bg-white p-8 shadow-lg shadow-orange-100">
         <div className="mb-6 flex flex-col items-center text-center">
-          <span className="mb-3 flex h-11 w-11 items-center justify-center rounded-xl bg-orange-600 text-lg font-bold text-white shadow-sm">
-            C
-          </span>
-          <h1 className="text-xl font-bold tracking-tight text-slate-900">コールトラッカー</h1>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src="/samurai-on.png"
+            alt="サムライオン"
+            className="mb-3 h-11 w-11 rounded-xl bg-orange-600 object-cover shadow-sm"
+          />
+          <h1 className="text-xl font-bold tracking-tight text-slate-900">SamuraiONコールトラッカー</h1>
           <p className="mt-1 text-sm text-slate-500">メールアドレスとパスワードでログイン</p>
         </div>
 

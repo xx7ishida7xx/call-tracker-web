@@ -31,11 +31,16 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     <div className="min-h-screen bg-orange-50 sm:flex">
       {/* デスクトップ：左側の縦型ナビゲーション（濃色） */}
       <aside className="hidden sm:sticky sm:top-0 sm:flex sm:h-screen sm:w-60 sm:shrink-0 sm:flex-col sm:bg-slate-900">
-        <div className="flex items-center gap-2 px-5 py-5">
-          <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-orange-500 text-sm font-bold text-white shadow-sm">
-            C
+        <div className="flex min-w-0 items-center gap-2 px-5 py-5">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src="/samurai-on.png"
+            alt="サムライオン"
+            className="h-9 w-9 shrink-0 rounded-lg bg-orange-500 object-cover shadow-sm"
+          />
+          <span className="min-w-0 truncate text-sm font-bold leading-tight tracking-tight text-white">
+            SamuraiONコールトラッカー
           </span>
-          <span className="text-base font-bold tracking-tight text-white">コールトラッカー</span>
         </div>
 
         <Sidebar items={navItems} />
@@ -64,11 +69,14 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       {/* モバイル：上部バー（濃色） */}
       <header className="sticky top-0 z-10 flex flex-col bg-slate-900 sm:hidden">
         <div className="flex items-center gap-2 px-4 py-3">
-          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-orange-500 text-sm font-bold text-white shadow-sm">
-            C
-          </span>
-          <span className="truncate text-sm font-bold tracking-tight text-white">コールトラッカー</span>
-          <span className="ml-1 truncate text-[11px] text-slate-400">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src="/samurai-on.png"
+            alt="サムライオン"
+            className="h-8 w-8 shrink-0 rounded-lg bg-orange-500 object-cover shadow-sm"
+          />
+          <span className="shrink truncate text-sm font-bold tracking-tight text-white">SamuraiONコールトラッカー</span>
+          <span className="ml-1 min-w-0 flex-1 truncate text-[11px] text-slate-400">
             {nameFor(me)}・{roleLabel}
           </span>
           <form action={signOut} className="ml-auto shrink-0">
