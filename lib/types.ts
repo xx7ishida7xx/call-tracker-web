@@ -127,7 +127,33 @@ export const LEAD_STATUSES = [
   "成約",
   "見送り",
   "対象外",
+  "アポ禁",
 ] as const;
+
+// 「アポ禁」＝今後連絡してはいけない先。マスター管理者（オーナー）・管理者以外には
+// 一覧・詳細のどこにも表示しない特別なステータス（実際の閲覧制限はデータベース側のRLSで行う）。
+export const APO_KIN_STATUS = "アポ禁";
+
+// 参照元（旧:元CMS）。取り込んだリストの元CMSベンダーで分類する。
+// 「その他」を選んだ場合は、さらに下の階層で具体的なサービス名を選べるようにする。
+export const CMS_MAIN_OPTIONS = ["A社製CMS", "G社製CMS", "WIX", "WordPress", "その他"] as const;
+
+// 「その他」を選んだときに選べる、実際に取り込み実績のあるサービス名
+// （件数の多い順）。ここにないものは「その他（自由入力）」で個別に入力する。
+export const CMS_OTHER_SUBOPTIONS = [
+  "ant2 secure-cms",
+  "サイト職人CMS",
+  "BlueMonkey",
+  "ペライチ",
+  "グーペ",
+  "Wantedly",
+  "STORES",
+  "Jimdo",
+] as const;
+
+// リード一覧の絞り込みで使う、参照元のフラットな選択肢一覧
+// （4大分類＋その他の下位選択肢をすべて並べたもの）
+export const CMS_FILTER_OPTIONS = [...CMS_MAIN_OPTIONS.slice(0, 4), ...CMS_OTHER_SUBOPTIONS, "その他"] as const;
 
 export function nameFor(p: Pick<Profile, "display_name" | "name" | "email"> | null | undefined): string {
   if (!p) return "（不明なメンバー）";

@@ -45,6 +45,7 @@ export const STATUS_BADGE_CLS: Record<string, string> = {
   成約: "bg-emerald-100 text-emerald-700",
   見送り: "bg-slate-100 text-slate-500",
   対象外: "bg-rose-100 text-rose-600",
+  アポ禁: "bg-slate-800 text-white",
 };
 
 export function statusBadgeCls(status: string) {

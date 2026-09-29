@@ -8,11 +8,34 @@ import {
   LEAD_STATUSES,
   BILLING_TYPES,
   DEFAULT_CONTRACT_PRODUCTS,
+  CMS_MAIN_OPTIONS,
+  CMS_OTHER_SUBOPTIONS,
   type Lead,
   type Profile,
   type Call,
   type ContractItem,
 } from "@/lib/types";
+
+const CMS_CUSTOM_OTHER = "その他（自由入力）";
+
+// 保存済みの参照元(cms)の値から、選択式UIの「大分類・下位選択肢・自由入力」を逆算する
+function splitCmsValue(value: string): { main: string; sub: string; custom: string } {
+  if (!value) return { main: "", sub: "", custom: "" };
+  const directMains: readonly string[] = CMS_MAIN_OPTIONS.slice(0, 4); // その他を除いた4つ
+  if (directMains.includes(value)) return { main: value, sub: "", custom: "" };
+  if ((CMS_OTHER_SUBOPTIONS as readonly string[]).includes(value)) {
+    return { main: "その他", sub: value, custom: "" };
+  }
+  return { main: "その他", sub: CMS_CUSTOM_OTHER, custom: value };
+}
+
+// 選択式UIの3つの状態から、実際にDBへ保存する1つの文字列を組み立てる
+function joinCmsValue(main: string, sub: string, custom: string): string {
+  if (!main) return "";
+  if (main !== "その他") return main;
+  if (sub === CMS_CUSTOM_OTHER) return custom.trim();
+  return sub;
+}
 import { formatDateTime } from "@/lib/format";
 import {
   btnPrimaryCls,
@@ -65,6 +88,20 @@ export default function LeadDetailClient({
   function setField<K extends keyof typeof form>(key: K, value: (typeof form)[K]) {
     setForm((f) => ({ ...f, [key]: value }));
     setSaved(false);
+  }
+
+  // 参照元（旧:元CMS）：保存値は1つの文字列だが、UI上は「大分類・下位選択肢・自由入力」の
+  // 3段階に分けて選べるようにしている。初期値は保存済みの値から逆算する。
+  const initialCms = splitCmsValue(lead.cms);
+  const [cmsMain, setCmsMain] = useState(initialCms.main);
+  const [cmsSub, setCmsSub] = useState(initialCms.sub);
+  const [cmsCustom, setCmsCustom] = useState(initialCms.custom);
+
+  function updateCms(main: string, sub: string, custom: string) {
+    setCmsMain(main);
+    setCmsSub(sub);
+    setCmsCustom(custom);
+    setField("cms", joinCmsValue(main, sub, custom));
   }
 
   // 契約状況：HP・MEO・SNS運用など、商材ごとに複数行を管理します
@@ -180,7 +217,10 @@ export default function LeadDetailClient({
               </div>
             </Field>
             <Field label="住所" full>
-              <input className={inputCls} value={form.address} onChange={(e) => setField("address", e.target.value)} />
+              <div className="flex gap-1.5">
+                <input className={inputCls} value={form.address} onChange={(e) => setField("address", e.target.value)} />
+                <QuickMapLink address={form.address} />
+              </div>
             </Field>
             <Field label="メールアドレス">
               <input className={inputCls} value={form.email} onChange={(e) => setField("email", e.target.value)} />
@@ -189,10 +229,54 @@ export default function LeadDetailClient({
               <div className="flex gap-1.5">
                 <input className={inputCls} value={form.url} onChange={(e) => setField("url", e.target.value)} />
                 <QuickOpenLink url={form.url} />
+                <QuickRichResultsLink url={form.url} />
               </div>
             </Field>
-            <Field label="元CMS">
-              <input className={inputCls} value={form.cms} onChange={(e) => setField("cms", e.target.value)} />
+            <Field label="参照元">
+              <div className="flex flex-col gap-1.5">
+                <select
+                  className={inputCls}
+                  value={cmsMain}
+                  onChange={(e) => {
+                    const newMain = e.target.value;
+                    if (newMain === "その他") {
+                      updateCms(newMain, cmsSub, cmsCustom);
+                    } else {
+                      updateCms(newMain, "", "");
+                    }
+                  }}
+                >
+                  <option value="">未設定</option>
+                  {CMS_MAIN_OPTIONS.map((o) => (
+                    <option key={o} value={o}>
+                      {o}
+                    </option>
+                  ))}
+                </select>
+                {cmsMain === "その他" && (
+                  <select
+                    className={inputCls}
+                    value={cmsSub}
+                    onChange={(e) => updateCms(cmsMain, e.target.value, cmsCustom)}
+                  >
+                    <option value="">選択してください</option>
+                    {CMS_OTHER_SUBOPTIONS.map((o) => (
+                      <option key={o} value={o}>
+                        {o}
+                      </option>
+                    ))}
+                    <option value={CMS_CUSTOM_OTHER}>{CMS_CUSTOM_OTHER}</option>
+                  </select>
+                )}
+                {cmsMain === "その他" && cmsSub === CMS_CUSTOM_OTHER && (
+                  <input
+                    className={inputCls}
+                    placeholder="サービス名を入力（例：ペライチ）"
+                    value={cmsCustom}
+                    onChange={(e) => updateCms(cmsMain, cmsSub, e.target.value)}
+                  />
+                )}
+              </div>
             </Field>
             <Field label="業種">
               <input className={inputCls} value={form.genre} onChange={(e) => setField("genre", e.target.value)} />
@@ -507,6 +591,36 @@ function QuickOpenLink({ url }: { url: string }) {
     <a href={href} target="_blank" rel="noopener noreferrer" title="このURLを開く" className={quickLinkCls}>
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4">
         <path d="M14 4h6v6M10 14 20 4M18 13v5a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h5" />
+      </svg>
+    </a>
+  );
+}
+
+// 住所の隣に表示する「地図」リンク。Googleマップの検索結果を新しいタブで開きます。
+function QuickMapLink({ address }: { address: string }) {
+  const clean = address.trim();
+  if (!clean) return null;
+  const href = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(clean)}`;
+  return (
+    <a href={href} target="_blank" rel="noopener noreferrer" title="Googleマップで開く" className={quickLinkCls}>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4">
+        <path d="M12 21s7-7.5 7-12a7 7 0 1 0-14 0c0 4.5 7 12 7 12Z" />
+        <circle cx="12" cy="9" r="2.5" />
+      </svg>
+    </a>
+  );
+}
+
+// URLの隣に表示する「リッチリザルトテスト」リンク。Googleのリッチリザルトテストを新しいタブで開きます。
+function QuickRichResultsLink({ url }: { url: string }) {
+  const clean = url.trim();
+  if (!clean) return null;
+  const target = /^https?:\/\//i.test(clean) ? clean : `https://${clean}`;
+  const href = `https://search.google.com/test/rich-results?url=${encodeURIComponent(target)}`;
+  return (
+    <a href={href} target="_blank" rel="noopener noreferrer" title="リッチリザルトテストを開く" className={quickLinkCls}>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4">
+        <path d="M9 11l3 3L22 4M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" />
       </svg>
     </a>
   );

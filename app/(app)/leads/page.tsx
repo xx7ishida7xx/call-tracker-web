@@ -1,7 +1,16 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentProfile } from "@/lib/auth";
-import { nameFor, LEAD_STATUSES, GENRES, PREFECTURES, canManageMembers, type Profile } from "@/lib/types";
+import {
+  nameFor,
+  LEAD_STATUSES,
+  GENRES,
+  PREFECTURES,
+  CMS_FILTER_OPTIONS,
+  APO_KIN_STATUS,
+  canManageMembers,
+  type Profile,
+} from "@/lib/types";
 import { formatDate, formatDateTime } from "@/lib/format";
 import AssigneeCell from "./AssigneeCell";
 import {
@@ -39,6 +48,7 @@ export default async function LeadsPage({
     assignee?: string;
     genre?: string | string[];
     pref?: string | string[];
+    cms?: string | string[];
     page?: string;
   }>;
 }) {
@@ -46,10 +56,16 @@ export default async function LeadsPage({
   const supabase = await createClient();
   const me = await getCurrentProfile();
   if (!me) return null;
+  const canManage = canManageMembers(me);
 
-  // 業種・都道府県は複数選択できるようにしているため、常に配列として扱う
+  // 業種・都道府県・参照元は複数選択できるようにしているため、常に配列として扱う
   const genreList = Array.isArray(sp.genre) ? sp.genre : sp.genre ? [sp.genre] : [];
   const prefList = Array.isArray(sp.pref) ? sp.pref : sp.pref ? [sp.pref] : [];
+  const cmsList = Array.isArray(sp.cms) ? sp.cms : sp.cms ? [sp.cms] : [];
+
+  // 「アポ禁」はオーナー・管理者以外には見せない（データ自体もRLSで見えなくなるが、
+  // 絞り込み欄や件数表示にも選択肢として出さないようにする）
+  const visibleStatuses = canManage ? LEAD_STATUSES : LEAD_STATUSES.filter((s) => s !== APO_KIN_STATUS);
 
   const page = Math.max(1, parseInt(sp.page || "1", 10) || 1);
   const from = (page - 1) * PAGE_SIZE;
@@ -65,13 +81,15 @@ export default async function LeadsPage({
     .range(from, to);
 
   if (sp.q && sp.q.trim()) {
+    // 会社名・電話番号・メールに加えて「参照元」も検索対象にする（例：「ペライチ」で絞り込みたい場合）
     const q = sp.q.trim().replace(/[%,]/g, "");
-    query = query.or(`company.ilike.%${q}%,phone.ilike.%${q}%,email.ilike.%${q}%`);
+    query = query.or(`company.ilike.%${q}%,phone.ilike.%${q}%,email.ilike.%${q}%,cms.ilike.%${q}%`);
   }
   if (sp.status) query = query.eq("status", sp.status);
   if (sp.assignee) query = query.eq("assigned_to", sp.assignee);
   if (genreList.length > 0) query = query.in("genre", genreList);
   if (prefList.length > 0) query = query.in("pref", prefList);
+  if (cmsList.length > 0) query = query.in("cms", cmsList);
 
   const { data, count, error } = await query;
   const leads = (data as unknown as LeadRow[]) ?? [];
@@ -79,7 +97,7 @@ export default async function LeadsPage({
   // 実績パネル用：ステータス別の全体件数（絞り込み条件に関わらず全体を表示）
   const { count: totalAll } = await supabase.from("leads").select("id", { count: "exact", head: true });
   const statusCounts = await Promise.all(
-    LEAD_STATUSES.map(async (status) => {
+    visibleStatuses.map(async (status) => {
       const { count: c } = await supabase
         .from("leads")
         .select("id", { count: "exact", head: true })
@@ -87,8 +105,6 @@ export default async function LeadsPage({
       return { status, count: c ?? 0 };
     })
   );
-
-  const canManage = canManageMembers(me);
   let roster: Profile[] = [];
   if (canManage) {
     const { data: rosterData } = await supabase.from("profiles").select("*").order("role");
@@ -105,6 +121,7 @@ export default async function LeadsPage({
     if (sp.assignee) params.set("assignee", sp.assignee);
     genreList.forEach((g) => params.append("genre", g));
     prefList.forEach((pr) => params.append("pref", pr));
+    cmsList.forEach((c) => params.append("cms", c));
     if (p > 1) params.set("page", String(p));
     const s = params.toString();
     return s ? `/leads?${s}` : "/leads";
@@ -145,7 +162,7 @@ export default async function LeadsPage({
           ステータス
           <select name="status" defaultValue={sp.status || ""} className={inputCls}>
             <option value="">すべて</option>
-            {LEAD_STATUSES.map((s) => (
+            {visibleStatuses.map((s) => (
               <option key={s} value={s}>
                 {s}
               </option>
@@ -154,6 +171,7 @@ export default async function LeadsPage({
         </label>
         <MultiSelectFilter label="業種" name="genre" options={GENRES} selected={genreList} />
         <MultiSelectFilter label="都道府県" name="pref" options={PREFECTURES} selected={prefList} />
+        <MultiSelectFilter label="参照元" name="cms" options={CMS_FILTER_OPTIONS} selected={cmsList} />
         {canManage && (
           <label className="flex flex-col gap-1 text-xs font-semibold text-slate-500">
             担当者
@@ -170,7 +188,7 @@ export default async function LeadsPage({
         <button type="submit" className={btnAccentCls}>
           絞り込む
         </button>
-        {(sp.q || sp.status || sp.assignee || genreList.length > 0 || prefList.length > 0) && (
+        {(sp.q || sp.status || sp.assignee || genreList.length > 0 || prefList.length > 0 || cmsList.length > 0) && (
           <Link href="/leads" className="text-xs font-medium text-slate-500 underline underline-offset-2 hover:text-orange-600">
             条件をクリア
           </Link>

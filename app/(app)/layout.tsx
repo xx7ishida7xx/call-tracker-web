@@ -3,6 +3,7 @@ import { getCurrentProfile } from "@/lib/auth";
 import { canManageMembers, nameFor, ROLE_LABEL } from "@/lib/types";
 import { signOut } from "@/app/actions";
 import Sidebar, { TopBarNav, type NavItem } from "./NavBar";
+import RecallReminder from "./RecallReminder";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const me = await getCurrentProfile();
@@ -85,6 +86,8 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       <div className="min-w-0 flex-1">
         <main className="mx-auto max-w-6xl px-4 py-6 sm:px-8 sm:py-8">{children}</main>
       </div>
+
+      <RecallReminder meId={me.id} />
     </div>
   );
 }
