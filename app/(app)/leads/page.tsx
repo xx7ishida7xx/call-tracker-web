@@ -256,7 +256,13 @@ export default async function LeadsPage({
       </div>
 
       {totalPages > 1 && (
-        <div className="flex items-center justify-center gap-2 text-sm">
+        <div className="flex flex-wrap items-center justify-center gap-2 text-sm">
+          <Link
+            href={hrefFor(1)}
+            className={page <= 1 ? "pointer-events-none rounded-lg border border-slate-100 px-3 py-1 text-slate-300" : btnSecondarySmCls}
+          >
+            先頭
+          </Link>
           <Link
             href={hrefFor(Math.max(1, page - 1))}
             className={page <= 1 ? "pointer-events-none rounded-lg border border-slate-100 px-3 py-1 text-slate-300" : btnSecondarySmCls}
@@ -272,6 +278,42 @@ export default async function LeadsPage({
           >
             次へ
           </Link>
+          <Link
+            href={hrefFor(totalPages)}
+            className={page >= totalPages ? "pointer-events-none rounded-lg border border-slate-100 px-3 py-1 text-slate-300" : btnSecondarySmCls}
+          >
+            末尾
+          </Link>
+
+          {/* 任意のページ番号へ直接移動する欄（現在の絞り込み条件は維持したまま移動します） */}
+          <form action="/leads" method="get" className="flex items-center gap-1.5">
+            {sp.q && <input type="hidden" name="q" value={sp.q} />}
+            {sp.status && <input type="hidden" name="status" value={sp.status} />}
+            {sp.assignee && <input type="hidden" name="assignee" value={sp.assignee} />}
+            {genreList.map((g) => (
+              <input key={`h-genre-${g}`} type="hidden" name="genre" value={g} />
+            ))}
+            {prefList.map((pr) => (
+              <input key={`h-pref-${pr}`} type="hidden" name="pref" value={pr} />
+            ))}
+            {cmsList.map((c) => (
+              <input key={`h-cms-${c}`} type="hidden" name="cms" value={c} />
+            ))}
+            <label className="flex items-center gap-1.5 text-xs font-semibold text-slate-500">
+              ページ指定
+              <input
+                type="number"
+                name="page"
+                min={1}
+                max={totalPages}
+                defaultValue={page}
+                className={`w-16 ${inputCls}`}
+              />
+            </label>
+            <button type="submit" className={btnSecondarySmCls}>
+              移動
+            </button>
+          </form>
         </div>
       )}
     </div>
