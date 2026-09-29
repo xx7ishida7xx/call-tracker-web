@@ -57,6 +57,18 @@ type CallWithCaller = Call & {
   caller: Pick<Profile, "id" | "name" | "display_name" | "email"> | null;
 };
 
+const EMPTY_CALL_FORM = {
+  resultGroup: "",
+  result: "",
+  usingFreeText: false,
+  freeText: "",
+  notes: "",
+  recall_at: "",
+  recall_target: "",
+  rank: "",
+  hot: false,
+};
+
 export default function LeadDetailClient({
   lead,
   calls,
@@ -155,18 +167,14 @@ export default function LeadDetailClient({
   // 通話記録フォーム：結果は「つながらなかった／つながった／その他／訪問結果」の
   // 4グループから1つだけ選ぶ形式。結果を選ぶと有効架電・アポ獲得・ステータスが
   // 自動で連動するため、それらを個別に指定する項目はない。
-  const [callForm, setCallForm] = useState({
-    resultGroup: "",
-    result: "",
-    usingFreeText: false,
-    freeText: "",
-    notes: "",
-    recall_at: "",
-    recall_target: "",
-    rank: "",
-    hot: false,
-  });
+  const [callForm, setCallForm] = useState(EMPTY_CALL_FORM);
   const [callError, setCallError] = useState<string | null>(null);
+
+  // 入力ミスをやり直したいとき用に、フォームを初期状態へ戻す
+  function resetCallForm() {
+    setCallError(null);
+    setCallForm(EMPTY_CALL_FORM);
+  }
 
   function selectResult(group: string, label: string) {
     setCallForm((f) => ({ ...f, resultGroup: group, result: label, usingFreeText: false }));
@@ -203,17 +211,7 @@ export default function LeadDetailClient({
           hot: callForm.hot,
         });
         setForm((f) => ({ ...f, status: nextStatus }));
-        setCallForm({
-          resultGroup: "",
-          result: "",
-          usingFreeText: false,
-          freeText: "",
-          notes: "",
-          recall_at: "",
-          recall_target: "",
-          rank: "",
-          hot: false,
-        });
+        setCallForm(EMPTY_CALL_FORM);
       } catch (e) {
         setCallError(e instanceof Error ? e.message : "登録に失敗しました。");
       }
@@ -492,9 +490,14 @@ export default function LeadDetailClient({
 
             {callError && <p className={errorCls}>{callError}</p>}
 
-            <button onClick={submitCall} disabled={isPending} className={`self-start ${btnPrimaryCls}`}>
-              {isPending ? "登録中…" : "通話記録を追加"}
-            </button>
+            <div className="flex items-center gap-2">
+              <button onClick={submitCall} disabled={isPending} className={btnPrimaryCls}>
+                {isPending ? "登録中…" : "通話記録を追加"}
+              </button>
+              <button type="button" onClick={resetCallForm} disabled={isPending} className={btnSecondarySmCls}>
+                リセット
+              </button>
+            </div>
           </div>
         </section>
       </div>
