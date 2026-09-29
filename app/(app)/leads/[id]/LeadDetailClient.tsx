@@ -14,6 +14,7 @@ import {
   CALL_RESULT_GROUPS,
   CALL_RANKS,
   getCallOutcome,
+  ACQUISITION_DESIRE_OPTIONS,
   type CallOutcome,
   type Lead,
   type Profile,
@@ -100,6 +101,8 @@ export default function LeadDetailClient({
     rep_mobile: lead.rep_mobile ?? "",
     contact_name: lead.contact_name ?? "",
     contact_mobile: lead.contact_mobile ?? "",
+    credit_company: lead.credit_company ?? "",
+    acquisition_desire: lead.acquisition_desire ?? "",
   });
 
   function setField<K extends keyof typeof form>(key: K, value: (typeof form)[K]) {
@@ -368,6 +371,30 @@ export default function LeadDetailClient({
                 <input className={inputCls} value={form.contact_mobile} onChange={(e) => setField("contact_mobile", e.target.value)} />
                 <QuickCallLink phone={form.contact_mobile} />
               </div>
+            </Field>
+
+            <p className={fieldGroupLabelCls}>販売関連情報</p>
+            <Field label="信販会社">
+              <input
+                className={inputCls}
+                placeholder="例：〇〇信販"
+                value={form.credit_company}
+                onChange={(e) => setField("credit_company", e.target.value)}
+              />
+            </Field>
+            <Field label="集客意欲">
+              <select
+                className={inputCls}
+                value={form.acquisition_desire}
+                onChange={(e) => setField("acquisition_desire", e.target.value)}
+              >
+                <option value="">未設定</option>
+                {ACQUISITION_DESIRE_OPTIONS.map((o) => (
+                  <option key={o} value={o}>
+                    {o}
+                  </option>
+                ))}
+              </select>
             </Field>
           </div>
 

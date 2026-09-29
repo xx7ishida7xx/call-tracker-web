@@ -51,11 +51,16 @@ export interface Lead {
   rep_mobile: string | null;
   contact_name: string | null;
   contact_mobile: string | null;
+  credit_company: string; // 信販会社（割賦契約の場合の信販会社名）
+  acquisition_desire: string; // 集客意欲（"有" / "無" / 未設定は空文字）
   contracts: ContractItem[];
   custom: Record<string, unknown>;
   created_at: string;
   updated_at: string;
 }
+
+// 集客意欲の選択肢
+export const ACQUISITION_DESIRE_OPTIONS = ["有", "無"] as const;
 
 // 契約状況（HP・MEO・SNS運用など、商材ごとに複数登録できます）
 export interface ContractItem {
@@ -183,6 +188,12 @@ export function getCallOutcome(group: string, result: string): CallOutcome {
 
 // 通話ごとの見込み度ランク（「なし」は空文字列/nullとして扱う）
 export const CALL_RANKS = ["A", "B", "C", "D"] as const;
+
+// リード一覧の絞り込み（コール履歴）で使う、結果のフラットな選択肢一覧。
+// 「再コール」はグループをまたいで重複するため1つにまとめている。
+export const CALL_RESULT_FLAT_OPTIONS: string[] = Array.from(
+  new Set(CALL_RESULT_GROUP_ORDER.flatMap((g) => CALL_RESULT_GROUPS[g]))
+);
 
 export const LEAD_STATUSES = [
   "未着手",
