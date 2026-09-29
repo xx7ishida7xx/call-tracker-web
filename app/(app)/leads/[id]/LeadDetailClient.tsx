@@ -5,6 +5,7 @@ import Link from "next/link";
 import { updateLead, addCall } from "@/app/actions";
 import { nameFor, LEAD_STATUSES, type Lead, type Profile, type Call } from "@/lib/types";
 import { formatDateTime } from "@/lib/format";
+import { btnPrimaryCls, cardCls, errorCls, inputCls, labelCls, sectionTitleCls } from "@/lib/ui";
 
 type CallWithCaller = Call & {
   caller: Pick<Profile, "id" | "name" | "display_name" | "email"> | null;
@@ -104,7 +105,7 @@ export default function LeadDetailClient({
   return (
     <div className="flex flex-col gap-6">
       <div className="flex items-center gap-2 text-sm text-slate-500">
-        <Link href="/leads" className="hover:underline">
+        <Link href="/leads" className="hover:text-orange-600 hover:underline">
           リード一覧
         </Link>
         <span>/</span>
@@ -113,8 +114,8 @@ export default function LeadDetailClient({
 
       <div className="grid gap-6 lg:grid-cols-2">
         {/* リード情報 */}
-        <section className="rounded-xl border border-slate-200 bg-white p-5">
-          <h2 className="mb-4 text-sm font-bold text-slate-900">リード情報</h2>
+        <section className={`${cardCls} p-5`}>
+          <h2 className={`mb-4 ${sectionTitleCls}`}>リード情報</h2>
           <div className="grid grid-cols-2 gap-3">
             <Field label="会社名" full>
               <input className={inputCls} value={form.company} onChange={(e) => setField("company", e.target.value)} />
@@ -182,23 +183,19 @@ export default function LeadDetailClient({
             </Field>
           </div>
 
-          {error && <p className="mt-3 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600">{error}</p>}
+          {error && <p className={`mt-3 ${errorCls}`}>{error}</p>}
 
           <div className="mt-4 flex items-center gap-3">
-            <button
-              onClick={saveLead}
-              disabled={isPending}
-              className="rounded-md bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-700 disabled:opacity-50"
-            >
+            <button onClick={saveLead} disabled={isPending} className={btnPrimaryCls}>
               {isPending ? "保存中…" : "保存する"}
             </button>
-            {saved && <span className="text-sm text-emerald-600">保存しました</span>}
+            {saved && <span className="text-sm font-medium text-emerald-600">保存しました</span>}
           </div>
         </section>
 
         {/* 通話記録 */}
-        <section className="rounded-xl border border-slate-200 bg-white p-5">
-          <h2 className="mb-4 text-sm font-bold text-slate-900">通話を記録する</h2>
+        <section className={`${cardCls} p-5`}>
+          <h2 className={`mb-4 ${sectionTitleCls}`}>通話を記録する</h2>
           <div className="flex flex-col gap-3">
             <Field label="結果">
               <input
@@ -247,9 +244,10 @@ export default function LeadDetailClient({
                   ))}
                 </select>
               </Field>
-              <label className="flex items-end gap-2 pb-2 text-sm text-slate-700">
+              <label className="flex items-end gap-2 pb-2.5 text-sm text-slate-700">
                 <input
                   type="checkbox"
+                  className="h-4 w-4 rounded border-slate-300 text-orange-600 focus:ring-orange-500"
                   checked={callForm.appointment}
                   onChange={(e) => setCallForm((f) => ({ ...f, appointment: e.target.checked }))}
                 />
@@ -257,13 +255,9 @@ export default function LeadDetailClient({
               </label>
             </div>
 
-            {callError && <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600">{callError}</p>}
+            {callError && <p className={errorCls}>{callError}</p>}
 
-            <button
-              onClick={submitCall}
-              disabled={isPending}
-              className="self-start rounded-md bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-700 disabled:opacity-50"
-            >
+            <button onClick={submitCall} disabled={isPending} className={`self-start ${btnPrimaryCls}`}>
               {isPending ? "登録中…" : "通話記録を追加"}
             </button>
           </div>
@@ -271,8 +265,8 @@ export default function LeadDetailClient({
       </div>
 
       {/* 通話履歴 */}
-      <section className="rounded-xl border border-slate-200 bg-white p-5">
-        <h2 className="mb-4 text-sm font-bold text-slate-900">通話履歴</h2>
+      <section className={`${cardCls} p-5`}>
+        <h2 className={`mb-4 ${sectionTitleCls}`}>通話履歴</h2>
         {calls.length === 0 ? (
           <p className="text-sm text-slate-400">まだ通話記録がありません</p>
         ) : (
@@ -283,7 +277,7 @@ export default function LeadDetailClient({
                   <span className="font-medium text-slate-700">{formatDateTime(c.called_at)}</span>
                   <span>・{c.caller ? nameFor(c.caller) : "不明"}</span>
                   {c.appointment && (
-                    <span className="rounded-full bg-amber-100 px-2 py-0.5 text-amber-700">アポ獲得</span>
+                    <span className="rounded-full bg-amber-100 px-2 py-0.5 font-semibold text-amber-800">アポ獲得</span>
                   )}
                 </div>
                 {c.result && <p className="mt-1 text-sm text-slate-800">{c.result}</p>}
@@ -303,12 +297,9 @@ export default function LeadDetailClient({
   );
 }
 
-const inputCls =
-  "w-full rounded-md border border-slate-300 px-3 py-1.5 text-sm focus:border-slate-500 focus:outline-none";
-
 function Field({ label, children, full }: { label: string; children: React.ReactNode; full?: boolean }) {
   return (
-    <label className={`flex flex-col gap-1 text-xs text-slate-500 ${full ? "col-span-2" : ""}`}>
+    <label className={`flex flex-col gap-1 ${labelCls} ${full ? "col-span-2" : ""}`}>
       {label}
       {children}
     </label>

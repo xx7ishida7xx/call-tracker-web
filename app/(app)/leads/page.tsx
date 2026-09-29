@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getCurrentProfile } from "@/lib/auth";
 import { nameFor, LEAD_STATUSES, canManageMembers, type Profile } from "@/lib/types";
 import { formatDate, formatDateTime } from "@/lib/format";
+import { btnPrimaryCls, btnSecondarySmCls, cardCls, inputCls, statusBadgeCls } from "@/lib/ui";
 
 const PAGE_SIZE = 50;
 
@@ -74,37 +75,24 @@ export default async function LeadsPage({
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex items-center justify-between">
-        <h1 className="text-lg font-bold text-slate-900">リード一覧</h1>
-        <div className="flex items-center gap-3">
-          <span className="text-sm text-slate-500">{total.toLocaleString()} 件</span>
-          <Link
-            href="/leads/new"
-            className="rounded-md bg-slate-900 px-3 py-1.5 text-xs font-semibold text-white hover:bg-slate-700"
-          >
-            + 新規リード追加
-          </Link>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h1 className="text-lg font-bold tracking-tight text-slate-900">リード一覧</h1>
+          <p className="mt-0.5 text-sm text-slate-500">{total.toLocaleString()} 件のリードが登録されています</p>
         </div>
+        <Link href="/leads/new" className={btnPrimaryCls}>
+          + 新規リード追加
+        </Link>
       </div>
 
-      <form className="flex flex-wrap items-end gap-3 rounded-xl border border-slate-200 bg-white p-4">
-        <label className="flex flex-col gap-1 text-xs text-slate-500">
+      <form className={`flex flex-wrap items-end gap-3 ${cardCls} p-4`}>
+        <label className="flex flex-col gap-1 text-xs font-semibold text-slate-500">
           会社名・電話番号・メール
-          <input
-            type="text"
-            name="q"
-            defaultValue={sp.q}
-            placeholder="検索キーワード"
-            className="w-56 rounded-md border border-slate-300 px-3 py-1.5 text-sm"
-          />
+          <input type="text" name="q" defaultValue={sp.q} placeholder="検索キーワード" className={`w-56 ${inputCls}`} />
         </label>
-        <label className="flex flex-col gap-1 text-xs text-slate-500">
+        <label className="flex flex-col gap-1 text-xs font-semibold text-slate-500">
           ステータス
-          <select
-            name="status"
-            defaultValue={sp.status || ""}
-            className="rounded-md border border-slate-300 px-3 py-1.5 text-sm"
-          >
+          <select name="status" defaultValue={sp.status || ""} className={inputCls}>
             <option value="">すべて</option>
             {LEAD_STATUSES.map((s) => (
               <option key={s} value={s}>
@@ -114,13 +102,9 @@ export default async function LeadsPage({
           </select>
         </label>
         {canManage && (
-          <label className="flex flex-col gap-1 text-xs text-slate-500">
+          <label className="flex flex-col gap-1 text-xs font-semibold text-slate-500">
             担当者
-            <select
-              name="assignee"
-              defaultValue={sp.assignee || ""}
-              className="rounded-md border border-slate-300 px-3 py-1.5 text-sm"
-            >
+            <select name="assignee" defaultValue={sp.assignee || ""} className={inputCls}>
               <option value="">すべて</option>
               {roster.map((r) => (
                 <option key={r.id} value={r.id}>
@@ -130,56 +114,49 @@ export default async function LeadsPage({
             </select>
           </label>
         )}
-        <button
-          type="submit"
-          className="rounded-md bg-slate-900 px-4 py-1.5 text-sm font-semibold text-white hover:bg-slate-700"
-        >
+        <button type="submit" className={btnPrimaryCls}>
           絞り込む
         </button>
         {(sp.q || sp.status || sp.assignee) && (
-          <Link href="/leads" className="text-xs text-slate-500 underline">
+          <Link href="/leads" className="text-xs font-medium text-slate-500 underline underline-offset-2 hover:text-orange-600">
             条件をクリア
           </Link>
         )}
       </form>
 
-      {error && (
-        <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600">
-          読み込みエラー: {error.message}
-        </p>
-      )}
+      {error && <p className="rounded-lg border border-red-100 bg-red-50 px-3 py-2 text-sm text-red-600">読み込みエラー: {error.message}</p>}
 
-      <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white">
+      <div className={`overflow-x-auto ${cardCls}`}>
         <table className="w-full min-w-[840px] text-sm">
           <thead>
-            <tr className="border-b border-slate-200 bg-slate-50 text-left text-xs text-slate-500">
-              <th className="px-4 py-2">会社名</th>
-              <th className="px-4 py-2">都道府県</th>
-              <th className="px-4 py-2">電話番号</th>
-              <th className="px-4 py-2">ステータス</th>
-              <th className="px-4 py-2">担当者</th>
-              <th className="px-4 py-2">最終架電</th>
-              <th className="px-4 py-2">次回架電予定</th>
+            <tr className="border-b border-orange-100 bg-orange-50/60 text-left text-xs font-semibold text-slate-500">
+              <th className="px-4 py-2.5">会社名</th>
+              <th className="px-4 py-2.5">都道府県</th>
+              <th className="px-4 py-2.5">電話番号</th>
+              <th className="px-4 py-2.5">ステータス</th>
+              <th className="px-4 py-2.5">担当者</th>
+              <th className="px-4 py-2.5">最終架電</th>
+              <th className="px-4 py-2.5">次回架電予定</th>
             </tr>
           </thead>
           <tbody>
             {leads.map((lead) => (
-              <tr key={lead.id} className="border-b border-slate-100 last:border-0 hover:bg-slate-50">
-                <td className="px-4 py-2">
-                  <Link href={`/leads/${lead.id}`} className="font-medium text-slate-900 hover:underline">
+              <tr key={lead.id} className="border-b border-slate-100 last:border-0 hover:bg-orange-50/40">
+                <td className="px-4 py-2.5">
+                  <Link href={`/leads/${lead.id}`} className="font-medium text-slate-900 hover:text-orange-600 hover:underline">
                     {lead.company || "（会社名未登録）"}
                   </Link>
                 </td>
-                <td className="px-4 py-2 text-slate-600">{lead.pref}</td>
-                <td className="px-4 py-2 text-slate-600">{lead.phone}</td>
-                <td className="px-4 py-2">
+                <td className="px-4 py-2.5 text-slate-600">{lead.pref}</td>
+                <td className="px-4 py-2.5 text-slate-600">{lead.phone}</td>
+                <td className="px-4 py-2.5">
                   <StatusBadge status={lead.status} />
                 </td>
-                <td className="px-4 py-2 text-slate-600">
+                <td className="px-4 py-2.5 text-slate-600">
                   {lead.assigned ? nameFor(lead.assigned) : "未割当"}
                 </td>
-                <td className="px-4 py-2 text-slate-500">{formatDate(lead.last_call_at)}</td>
-                <td className="px-4 py-2 text-slate-500">{formatDateTime(lead.recall_at)}</td>
+                <td className="px-4 py-2.5 text-slate-500">{formatDate(lead.last_call_at)}</td>
+                <td className="px-4 py-2.5 text-slate-500">{formatDateTime(lead.recall_at)}</td>
               </tr>
             ))}
             {leads.length === 0 && !error && (
@@ -197,7 +174,7 @@ export default async function LeadsPage({
         <div className="flex items-center justify-center gap-2 text-sm">
           <Link
             href={hrefFor(Math.max(1, page - 1))}
-            className={`rounded-md border px-3 py-1 ${page <= 1 ? "pointer-events-none border-slate-100 text-slate-300" : "border-slate-300 text-slate-600 hover:bg-slate-100"}`}
+            className={page <= 1 ? "pointer-events-none rounded-lg border border-slate-100 px-3 py-1 text-slate-300" : btnSecondarySmCls}
           >
             前へ
           </Link>
@@ -206,7 +183,7 @@ export default async function LeadsPage({
           </span>
           <Link
             href={hrefFor(Math.min(totalPages, page + 1))}
-            className={`rounded-md border px-3 py-1 ${page >= totalPages ? "pointer-events-none border-slate-100 text-slate-300" : "border-slate-300 text-slate-600 hover:bg-slate-100"}`}
+            className={page >= totalPages ? "pointer-events-none rounded-lg border border-slate-100 px-3 py-1 text-slate-300" : btnSecondarySmCls}
           >
             次へ
           </Link>
@@ -217,16 +194,8 @@ export default async function LeadsPage({
 }
 
 function StatusBadge({ status }: { status: string }) {
-  const colorMap: Record<string, string> = {
-    未着手: "bg-slate-100 text-slate-600",
-    架電中: "bg-blue-100 text-blue-700",
-    アポ獲得: "bg-amber-100 text-amber-700",
-    成約: "bg-emerald-100 text-emerald-700",
-    見送り: "bg-slate-100 text-slate-500",
-    対象外: "bg-red-100 text-red-600",
-  };
   return (
-    <span className={`inline-block rounded-full px-2.5 py-0.5 text-xs font-medium ${colorMap[status] || "bg-slate-100 text-slate-600"}`}>
+    <span className={`inline-block rounded-full px-2.5 py-0.5 text-xs font-semibold ${statusBadgeCls(status)}`}>
       {status}
     </span>
   );

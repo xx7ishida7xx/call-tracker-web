@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 import Link from "next/link";
 import { createLead } from "@/app/actions";
 import { nameFor, type Profile } from "@/lib/types";
+import { btnPrimaryCls, cardCls, errorCls, inputCls, labelCls } from "@/lib/ui";
 
 const EMPTY = {
   company: "",
@@ -45,14 +46,14 @@ export default function NewLeadClient({ roster, canAssign }: { roster: Profile[]
   return (
     <div className="flex max-w-xl flex-col gap-4">
       <div className="flex items-center gap-2 text-sm text-slate-500">
-        <Link href="/leads" className="hover:underline">
+        <Link href="/leads" className="hover:text-orange-600 hover:underline">
           リード一覧
         </Link>
         <span>/</span>
         <span className="text-slate-800">新規リード追加</span>
       </div>
 
-      <div className="rounded-xl border border-slate-200 bg-white p-5">
+      <div className={`${cardCls} p-5`}>
         <div className="grid grid-cols-2 gap-3">
           <Field label="会社名" full>
             <input className={inputCls} value={form.company} onChange={(e) => setField("company", e.target.value)} />
@@ -83,11 +84,7 @@ export default function NewLeadClient({ roster, canAssign }: { roster: Profile[]
           </Field>
           {canAssign && (
             <Field label="担当者">
-              <select
-                className={inputCls}
-                value={form.assigned_to}
-                onChange={(e) => setField("assigned_to", e.target.value)}
-              >
+              <select className={inputCls} value={form.assigned_to} onChange={(e) => setField("assigned_to", e.target.value)}>
                 <option value="">未割当</option>
                 {roster.map((r) => (
                   <option key={r.id} value={r.id}>
@@ -99,13 +96,9 @@ export default function NewLeadClient({ roster, canAssign }: { roster: Profile[]
           )}
         </div>
 
-        {error && <p className="mt-3 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600">{error}</p>}
+        {error && <p className={`mt-3 ${errorCls}`}>{error}</p>}
 
-        <button
-          onClick={submit}
-          disabled={isPending}
-          className="mt-4 rounded-md bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-700 disabled:opacity-50"
-        >
+        <button onClick={submit} disabled={isPending} className={`mt-4 ${btnPrimaryCls}`}>
           {isPending ? "登録中…" : "登録する"}
         </button>
       </div>
@@ -113,12 +106,9 @@ export default function NewLeadClient({ roster, canAssign }: { roster: Profile[]
   );
 }
 
-const inputCls =
-  "w-full rounded-md border border-slate-300 px-3 py-1.5 text-sm focus:border-slate-500 focus:outline-none";
-
 function Field({ label, children, full }: { label: string; children: React.ReactNode; full?: boolean }) {
   return (
-    <label className={`flex flex-col gap-1 text-xs text-slate-500 ${full ? "col-span-2" : ""}`}>
+    <label className={`flex flex-col gap-1 ${labelCls} ${full ? "col-span-2" : ""}`}>
       {label}
       {children}
     </label>
