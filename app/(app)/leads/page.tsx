@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentProfile } from "@/lib/auth";
-import { nameFor, LEAD_STATUSES, canManageMembers, type Profile } from "@/lib/types";
+import { nameFor, LEAD_STATUSES, GENRES, PREFECTURES, canManageMembers, type Profile } from "@/lib/types";
 import { formatDate, formatDateTime } from "@/lib/format";
 import {
   btnAccentCls,
@@ -32,7 +32,7 @@ type LeadRow = {
 export default async function LeadsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ q?: string; status?: string; assignee?: string; page?: string }>;
+  searchParams: Promise<{ q?: string; status?: string; assignee?: string; genre?: string; pref?: string; page?: string }>;
 }) {
   const sp = await searchParams;
   const supabase = await createClient();
@@ -58,6 +58,8 @@ export default async function LeadsPage({
   }
   if (sp.status) query = query.eq("status", sp.status);
   if (sp.assignee) query = query.eq("assigned_to", sp.assignee);
+  if (sp.genre) query = query.eq("genre", sp.genre);
+  if (sp.pref) query = query.eq("pref", sp.pref);
 
   const { data, count, error } = await query;
   const leads = (data as unknown as LeadRow[]) ?? [];
@@ -89,6 +91,8 @@ export default async function LeadsPage({
     if (sp.q) params.set("q", sp.q);
     if (sp.status) params.set("status", sp.status);
     if (sp.assignee) params.set("assignee", sp.assignee);
+    if (sp.genre) params.set("genre", sp.genre);
+    if (sp.pref) params.set("pref", sp.pref);
     if (p > 1) params.set("page", String(p));
     const s = params.toString();
     return s ? `/leads?${s}` : "/leads";
@@ -136,6 +140,28 @@ export default async function LeadsPage({
             ))}
           </select>
         </label>
+        <label className="flex flex-col gap-1 text-xs font-semibold text-slate-500">
+          業種
+          <select name="genre" defaultValue={sp.genre || ""} className={inputCls}>
+            <option value="">すべて</option>
+            {GENRES.map((g) => (
+              <option key={g} value={g}>
+                {g}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label className="flex flex-col gap-1 text-xs font-semibold text-slate-500">
+          都道府県
+          <select name="pref" defaultValue={sp.pref || ""} className={inputCls}>
+            <option value="">すべて</option>
+            {PREFECTURES.map((p) => (
+              <option key={p} value={p}>
+                {p}
+              </option>
+            ))}
+          </select>
+        </label>
         {canManage && (
           <label className="flex flex-col gap-1 text-xs font-semibold text-slate-500">
             担当者
@@ -152,7 +178,7 @@ export default async function LeadsPage({
         <button type="submit" className={btnAccentCls}>
           絞り込む
         </button>
-        {(sp.q || sp.status || sp.assignee) && (
+        {(sp.q || sp.status || sp.assignee || sp.genre || sp.pref) && (
           <Link href="/leads" className="text-xs font-medium text-slate-500 underline underline-offset-2 hover:text-orange-600">
             条件をクリア
           </Link>
@@ -183,7 +209,15 @@ export default async function LeadsPage({
                   </Link>
                 </td>
                 <td className="px-4 py-2.5 text-slate-600">{lead.pref}</td>
-                <td className="px-4 py-2.5 text-slate-600">{lead.phone}</td>
+                <td className="px-4 py-2.5 text-slate-600">
+                  {lead.phone ? (
+                    <a href={`tel:${lead.phone}`} className="hover:text-orange-600 hover:underline" title="この番号に発信する">
+                      {lead.phone}
+                    </a>
+                  ) : (
+                    "—"
+                  )}
+                </td>
                 <td className="px-4 py-2.5">
                   <StatusBadge status={lead.status} />
                 </td>
