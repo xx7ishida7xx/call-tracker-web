@@ -334,7 +334,7 @@ export default async function LeadsPage({ searchParams }: { searchParams: Promis
             </label>
           </FilterGroup>
 
-          <FilterGroup title="ホームページ">
+          <FilterGroup title="既存契約">
             <label className="flex flex-col gap-1 text-xs font-semibold text-slate-500">
               ホームページ有無
               <select name="has_url" defaultValue={sp.has_url || ""} className={inputCls}>
@@ -357,17 +357,6 @@ export default async function LeadsPage({ searchParams }: { searchParams: Promis
                 <option value="">未選択</option>
                 <option value="yes">あり</option>
                 <option value="no">なし</option>
-              </select>
-            </label>
-            <label className="flex flex-col gap-1 text-xs font-semibold text-slate-500">
-              集客意欲
-              <select name="acquisition_desire" defaultValue={sp.acquisition_desire || ""} className={inputCls}>
-                <option value="">未選択</option>
-                {ACQUISITION_DESIRE_OPTIONS.map((o) => (
-                  <option key={o} value={o}>
-                    {ACQUISITION_DESIRE_LABEL[o]}
-                  </option>
-                ))}
               </select>
             </label>
           </FilterGroup>
@@ -397,6 +386,20 @@ export default async function LeadsPage({ searchParams }: { searchParams: Promis
                 </select>
               </label>
             )}
+          </FilterGroup>
+
+          <FilterGroup title="やる気度">
+            <label className="flex flex-col gap-1 text-xs font-semibold text-slate-500">
+              集客意欲
+              <select name="acquisition_desire" defaultValue={sp.acquisition_desire || ""} className={inputCls}>
+                <option value="">未選択</option>
+                {ACQUISITION_DESIRE_OPTIONS.map((o) => (
+                  <option key={o} value={o}>
+                    {ACQUISITION_DESIRE_LABEL[o]}
+                  </option>
+                ))}
+              </select>
+            </label>
           </FilterGroup>
         </div>
 
