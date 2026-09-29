@@ -4,7 +4,7 @@ import { useState, useTransition } from "react";
 import Link from "next/link";
 import { createLead } from "@/app/actions";
 import { nameFor, type Profile } from "@/lib/types";
-import { btnPrimaryCls, cardCls, errorCls, inputCls, labelCls } from "@/lib/ui";
+import { btnPrimaryCls, cardCls, errorCls, fieldGroupLabelCls, inputCls, labelCls } from "@/lib/ui";
 
 const EMPTY = {
   company: "",
@@ -55,6 +55,7 @@ export default function NewLeadClient({ roster, canAssign }: { roster: Profile[]
 
       <div className={`${cardCls} p-5`}>
         <div className="grid grid-cols-2 gap-3">
+          <p className={fieldGroupLabelCls}>基本情報</p>
           <Field label="会社名" full>
             <input className={inputCls} value={form.company} onChange={(e) => setField("company", e.target.value)} />
           </Field>
@@ -82,17 +83,21 @@ export default function NewLeadClient({ roster, canAssign }: { roster: Profile[]
           <Field label="業種詳細">
             <input className={inputCls} value={form.subgenre} onChange={(e) => setField("subgenre", e.target.value)} />
           </Field>
+
           {canAssign && (
-            <Field label="担当者">
-              <select className={inputCls} value={form.assigned_to} onChange={(e) => setField("assigned_to", e.target.value)}>
-                <option value="">未割当</option>
-                {roster.map((r) => (
-                  <option key={r.id} value={r.id}>
-                    {nameFor(r)}
-                  </option>
-                ))}
-              </select>
-            </Field>
+            <>
+              <p className={fieldGroupLabelCls}>担当</p>
+              <Field label="担当者">
+                <select className={inputCls} value={form.assigned_to} onChange={(e) => setField("assigned_to", e.target.value)}>
+                  <option value="">未割当</option>
+                  {roster.map((r) => (
+                    <option key={r.id} value={r.id}>
+                      {nameFor(r)}
+                    </option>
+                  ))}
+                </select>
+              </Field>
+            </>
           )}
         </div>
 

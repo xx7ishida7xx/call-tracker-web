@@ -1,6 +1,13 @@
 @import "tailwindcss";
 
+/*
+  このアプリはライト配色のみを想定してデザインしています。
+  OS・ブラウザ側の「ダークモード自動変換」に任せると、半透明の背景色が
+  黒背景と混ざって薄汚れた色になってしまうため、color-scheme を明示して
+  ブラウザの自動変換を無効にしています。
+*/
 :root {
+  color-scheme: light;
   --background: #ffffff;
   --foreground: #171717;
 }
@@ -10,11 +17,8 @@
   --color-foreground: var(--foreground);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+html {
+  background: var(--background);
 }
 
 body {

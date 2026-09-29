@@ -3,7 +3,16 @@ import { createClient } from "@/lib/supabase/server";
 import { getCurrentProfile } from "@/lib/auth";
 import { nameFor, LEAD_STATUSES, canManageMembers, type Profile } from "@/lib/types";
 import { formatDate, formatDateTime } from "@/lib/format";
-import { btnPrimaryCls, btnSecondarySmCls, cardCls, inputCls, statusBadgeCls } from "@/lib/ui";
+import {
+  btnAccentCls,
+  btnPrimaryCls,
+  btnSecondarySmCls,
+  cardCls,
+  inputCls,
+  statChipCls,
+  statChipLabelCls,
+  statusBadgeCls,
+} from "@/lib/ui";
 
 const PAGE_SIZE = 50;
 
@@ -53,6 +62,18 @@ export default async function LeadsPage({
   const { data, count, error } = await query;
   const leads = (data as unknown as LeadRow[]) ?? [];
 
+  // 実績パネル用：ステータス別の全体件数（絞り込み条件に関わらず全体を表示）
+  const { count: totalAll } = await supabase.from("leads").select("id", { count: "exact", head: true });
+  const statusCounts = await Promise.all(
+    LEAD_STATUSES.map(async (status) => {
+      const { count: c } = await supabase
+        .from("leads")
+        .select("id", { count: "exact", head: true })
+        .eq("status", status);
+      return { status, count: c ?? 0 };
+    })
+  );
+
   const canManage = canManageMembers(me);
   let roster: Profile[] = [];
   if (canManage) {
@@ -85,6 +106,20 @@ export default async function LeadsPage({
         </Link>
       </div>
 
+      {/* 実績パネル：全体のステータス別件数をひと目で確認できます */}
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-7">
+        <div className={statChipCls}>
+          <span className={statChipLabelCls}>総件数</span>
+          <span className="text-lg font-bold tabular-nums text-slate-900">{(totalAll ?? 0).toLocaleString()}</span>
+        </div>
+        {statusCounts.map((s) => (
+          <div key={s.status} className={statChipCls}>
+            <span className={statChipLabelCls}>{s.status}</span>
+            <span className="text-lg font-bold tabular-nums text-slate-900">{s.count.toLocaleString()}</span>
+          </div>
+        ))}
+      </div>
+
       <form className={`flex flex-wrap items-end gap-3 ${cardCls} p-4`}>
         <label className="flex flex-col gap-1 text-xs font-semibold text-slate-500">
           会社名・電話番号・メール
@@ -114,7 +149,7 @@ export default async function LeadsPage({
             </select>
           </label>
         )}
-        <button type="submit" className={btnPrimaryCls}>
+        <button type="submit" className={btnAccentCls}>
           絞り込む
         </button>
         {(sp.q || sp.status || sp.assignee) && (

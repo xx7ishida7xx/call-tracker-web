@@ -5,7 +5,7 @@ import Link from "next/link";
 import { updateLead, addCall } from "@/app/actions";
 import { nameFor, LEAD_STATUSES, type Lead, type Profile, type Call } from "@/lib/types";
 import { formatDateTime } from "@/lib/format";
-import { btnPrimaryCls, cardCls, errorCls, inputCls, labelCls, sectionTitleCls } from "@/lib/ui";
+import { btnPrimaryCls, cardCls, errorCls, fieldGroupLabelCls, inputCls, labelCls, sectionTitleCls } from "@/lib/ui";
 
 type CallWithCaller = Call & {
   caller: Pick<Profile, "id" | "name" | "display_name" | "email"> | null;
@@ -117,6 +117,7 @@ export default function LeadDetailClient({
         <section className={`${cardCls} p-5`}>
           <h2 className={`mb-4 ${sectionTitleCls}`}>リード情報</h2>
           <div className="grid grid-cols-2 gap-3">
+            <p className={fieldGroupLabelCls}>基本情報</p>
             <Field label="会社名" full>
               <input className={inputCls} value={form.company} onChange={(e) => setField("company", e.target.value)} />
             </Field>
@@ -144,6 +145,8 @@ export default function LeadDetailClient({
             <Field label="業種詳細">
               <input className={inputCls} value={form.subgenre} onChange={(e) => setField("subgenre", e.target.value)} />
             </Field>
+
+            <p className={fieldGroupLabelCls}>ステータス・担当</p>
             <Field label="ステータス">
               <select className={inputCls} value={form.status} onChange={(e) => setField("status", e.target.value)}>
                 {LEAD_STATUSES.map((s) => (
@@ -169,6 +172,8 @@ export default function LeadDetailClient({
                 </select>
               </Field>
             )}
+
+            <p className={fieldGroupLabelCls}>顧客側の担当者情報</p>
             <Field label="担当者名（顧客側）">
               <input className={inputCls} value={form.rep_name} onChange={(e) => setField("rep_name", e.target.value)} />
             </Field>
