@@ -10,6 +10,7 @@ import {
   CALL_RESULT_FLAT_OPTIONS,
   CALL_RANKS,
   ACQUISITION_DESIRE_OPTIONS,
+  ACQUISITION_DESIRE_LABEL,
   APO_KIN_STATUS,
   canManageMembers,
   type Profile,
@@ -364,7 +365,7 @@ export default async function LeadsPage({ searchParams }: { searchParams: Promis
                 <option value="">未選択</option>
                 {ACQUISITION_DESIRE_OPTIONS.map((o) => (
                   <option key={o} value={o}>
-                    {o}
+                    {ACQUISITION_DESIRE_LABEL[o]}
                   </option>
                 ))}
               </select>

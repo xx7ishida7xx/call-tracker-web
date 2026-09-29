@@ -59,8 +59,13 @@ export interface Lead {
   updated_at: string;
 }
 
-// 集客意欲の選択肢
+// 集客意欲の選択肢。保存する値は既存データとの互換性のため "有"/"無" のまま。
+// 画面上の表示だけ、ホームページ／MEO／SNS運用の有無と表記をそろえて「あり」「なし」にする。
 export const ACQUISITION_DESIRE_OPTIONS = ["有", "無"] as const;
+export const ACQUISITION_DESIRE_LABEL: Record<(typeof ACQUISITION_DESIRE_OPTIONS)[number], string> = {
+  有: "あり",
+  無: "なし",
+};
 
 // 契約状況（HP・MEO・SNS運用など、商材ごとに複数登録できます）
 export interface ContractItem {

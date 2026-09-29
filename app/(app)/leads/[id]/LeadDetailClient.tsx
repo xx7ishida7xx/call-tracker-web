@@ -15,6 +15,7 @@ import {
   CALL_RANKS,
   getCallOutcome,
   ACQUISITION_DESIRE_OPTIONS,
+  ACQUISITION_DESIRE_LABEL,
   type CallOutcome,
   type Lead,
   type Profile,
@@ -397,7 +398,7 @@ export default function LeadDetailClient({
                 <option value="">未設定</option>
                 {ACQUISITION_DESIRE_OPTIONS.map((o) => (
                   <option key={o} value={o}>
-                    {o}
+                    {ACQUISITION_DESIRE_LABEL[o]}
                   </option>
                 ))}
               </select>
