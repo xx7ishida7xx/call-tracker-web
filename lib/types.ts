@@ -1,13 +1,21 @@
-export type Role = "admin" | "teamlead" | "staff" | "guest";
+// guest_admin: ゲストチーム（販売店など）のまとめ役。teamlead と同じように、
+// 自分のチーム（team_lead_id で紐づく配下のゲストメンバー）のリードを扱える。
+// guest_member: そのゲストチームの一般メンバー。staff と同じく自分の担当分のみ。
+export type Role = "admin" | "teamlead" | "staff" | "guest_admin" | "guest_member";
 
 export const ROLE_LABEL: Record<Role, string> = {
   admin: "管理者",
   teamlead: "チームリーダー",
   staff: "スタッフ",
-  guest: "ゲスト",
+  guest_admin: "ゲスト管理者",
+  guest_member: "ゲストメンバー",
 };
 
-export const ROLE_ORDER: Role[] = ["admin", "teamlead", "staff", "guest"];
+export const ROLE_ORDER: Role[] = ["admin", "teamlead", "staff", "guest_admin", "guest_member"];
+
+// team_lead_id の「配下グループのまとめ役」となるロール（このロールの人だけが
+// team_lead_id の候補として選べる）
+export const GUEST_ROLES: Role[] = ["guest_admin", "guest_member"];
 
 export interface Profile {
   id: string;
@@ -17,6 +25,7 @@ export interface Profile {
   role: Role;
   is_owner: boolean;
   team_lead_id: string | null;
+  org_name: string | null; // ゲストチームに設定する会社名（販売店が決まったら設定）
   created_at: string;
   updated_at: string;
 }
@@ -106,6 +115,7 @@ export interface Call {
   recall_at: string | null;
   recall_target: string | null;
   appointment: boolean;
+  connected: boolean; // 有効架電（担当者と話せた）かどうか
   notes: string;
   created_at: string;
 }

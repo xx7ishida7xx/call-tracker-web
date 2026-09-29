@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getCurrentProfile } from "@/lib/auth";
 import { nameFor, LEAD_STATUSES, GENRES, PREFECTURES, canManageMembers, type Profile } from "@/lib/types";
 import { formatDate, formatDateTime } from "@/lib/format";
+import AssigneeCell from "./AssigneeCell";
 import {
   btnAccentCls,
   btnPrimaryCls,
@@ -32,12 +33,23 @@ type LeadRow = {
 export default async function LeadsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ q?: string; status?: string; assignee?: string; genre?: string; pref?: string; page?: string }>;
+  searchParams: Promise<{
+    q?: string;
+    status?: string;
+    assignee?: string;
+    genre?: string | string[];
+    pref?: string | string[];
+    page?: string;
+  }>;
 }) {
   const sp = await searchParams;
   const supabase = await createClient();
   const me = await getCurrentProfile();
   if (!me) return null;
+
+  // 業種・都道府県は複数選択できるようにしているため、常に配列として扱う
+  const genreList = Array.isArray(sp.genre) ? sp.genre : sp.genre ? [sp.genre] : [];
+  const prefList = Array.isArray(sp.pref) ? sp.pref : sp.pref ? [sp.pref] : [];
 
   const page = Math.max(1, parseInt(sp.page || "1", 10) || 1);
   const from = (page - 1) * PAGE_SIZE;
@@ -58,8 +70,8 @@ export default async function LeadsPage({
   }
   if (sp.status) query = query.eq("status", sp.status);
   if (sp.assignee) query = query.eq("assigned_to", sp.assignee);
-  if (sp.genre) query = query.eq("genre", sp.genre);
-  if (sp.pref) query = query.eq("pref", sp.pref);
+  if (genreList.length > 0) query = query.in("genre", genreList);
+  if (prefList.length > 0) query = query.in("pref", prefList);
 
   const { data, count, error } = await query;
   const leads = (data as unknown as LeadRow[]) ?? [];
@@ -91,8 +103,8 @@ export default async function LeadsPage({
     if (sp.q) params.set("q", sp.q);
     if (sp.status) params.set("status", sp.status);
     if (sp.assignee) params.set("assignee", sp.assignee);
-    if (sp.genre) params.set("genre", sp.genre);
-    if (sp.pref) params.set("pref", sp.pref);
+    genreList.forEach((g) => params.append("genre", g));
+    prefList.forEach((pr) => params.append("pref", pr));
     if (p > 1) params.set("page", String(p));
     const s = params.toString();
     return s ? `/leads?${s}` : "/leads";
@@ -140,28 +152,8 @@ export default async function LeadsPage({
             ))}
           </select>
         </label>
-        <label className="flex flex-col gap-1 text-xs font-semibold text-slate-500">
-          業種
-          <select name="genre" defaultValue={sp.genre || ""} className={inputCls}>
-            <option value="">すべて</option>
-            {GENRES.map((g) => (
-              <option key={g} value={g}>
-                {g}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label className="flex flex-col gap-1 text-xs font-semibold text-slate-500">
-          都道府県
-          <select name="pref" defaultValue={sp.pref || ""} className={inputCls}>
-            <option value="">すべて</option>
-            {PREFECTURES.map((p) => (
-              <option key={p} value={p}>
-                {p}
-              </option>
-            ))}
-          </select>
-        </label>
+        <MultiSelectFilter label="業種" name="genre" options={GENRES} selected={genreList} />
+        <MultiSelectFilter label="都道府県" name="pref" options={PREFECTURES} selected={prefList} />
         {canManage && (
           <label className="flex flex-col gap-1 text-xs font-semibold text-slate-500">
             担当者
@@ -178,7 +170,7 @@ export default async function LeadsPage({
         <button type="submit" className={btnAccentCls}>
           絞り込む
         </button>
-        {(sp.q || sp.status || sp.assignee || sp.genre || sp.pref) && (
+        {(sp.q || sp.status || sp.assignee || genreList.length > 0 || prefList.length > 0) && (
           <Link href="/leads" className="text-xs font-medium text-slate-500 underline underline-offset-2 hover:text-orange-600">
             条件をクリア
           </Link>
@@ -222,7 +214,13 @@ export default async function LeadsPage({
                   <StatusBadge status={lead.status} />
                 </td>
                 <td className="px-4 py-2.5 text-slate-600">
-                  {lead.assigned ? nameFor(lead.assigned) : "未割当"}
+                  {canManage ? (
+                    <AssigneeCell leadId={lead.id} assignedTo={lead.assigned_to} roster={roster} />
+                  ) : lead.assigned ? (
+                    nameFor(lead.assigned)
+                  ) : (
+                    "未割当"
+                  )}
                 </td>
                 <td className="px-4 py-2.5 text-slate-500">{formatDate(lead.last_call_at)}</td>
                 <td className="px-4 py-2.5 text-slate-500">{formatDateTime(lead.recall_at)}</td>
@@ -267,5 +265,49 @@ function StatusBadge({ status }: { status: string }) {
     <span className={`inline-block rounded-full px-2.5 py-0.5 text-xs font-semibold ${statusBadgeCls(status)}`}>
       {status}
     </span>
+  );
+}
+
+// 業種・都道府県のように選択肢が多い項目を、チェックボックスで複数選べるようにする
+// 絞り込み用ドロップダウン。JavaScript不要の <details> 要素で開閉しています。
+function MultiSelectFilter({
+  label,
+  name,
+  options,
+  selected,
+}: {
+  label: string;
+  name: string;
+  options: readonly string[];
+  selected: string[];
+}) {
+  return (
+    <div className="flex flex-col gap-1 text-xs font-semibold text-slate-500">
+      {label}
+      <details className="relative">
+        <summary
+          className={`${inputCls} flex cursor-pointer select-none items-center justify-between gap-2 [&::-webkit-details-marker]:hidden`}
+        >
+          <span className="truncate">{selected.length === 0 ? "すべて" : `${selected.length}件選択中`}</span>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="h-3.5 w-3.5 shrink-0 text-slate-400">
+            <path d="M6 9l6 6 6-6" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+        </summary>
+        <div className="absolute z-20 mt-1 max-h-56 w-56 overflow-y-auto rounded-lg border border-slate-200 bg-white p-2 shadow-lg">
+          {options.map((opt) => (
+            <label key={opt} className="flex items-center gap-2 rounded px-2 py-1 text-sm font-normal text-slate-700 hover:bg-orange-50">
+              <input
+                type="checkbox"
+                name={name}
+                value={opt}
+                defaultChecked={selected.includes(opt)}
+                className="rounded border-slate-300 text-orange-600 focus:ring-orange-500"
+              />
+              {opt}
+            </label>
+          ))}
+        </div>
+      </details>
+    </div>
   );
 }

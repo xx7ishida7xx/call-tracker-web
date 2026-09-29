@@ -115,6 +115,7 @@ export default function LeadDetailClient({
     result: "",
     notes: "",
     appointment: false,
+    connected: false,
     recall_at: "",
     recall_target: "",
     next_status: lead.status,
@@ -129,6 +130,7 @@ export default function LeadDetailClient({
           result: callForm.result,
           notes: callForm.notes,
           appointment: callForm.appointment,
+          connected: callForm.connected,
           recall_at: callForm.recall_at ? new Date(callForm.recall_at).toISOString() : null,
           recall_target: callForm.recall_target || null,
           next_status: callForm.next_status,
@@ -138,6 +140,7 @@ export default function LeadDetailClient({
           result: "",
           notes: "",
           appointment: false,
+          connected: false,
           recall_at: "",
           recall_target: "",
           next_status: callForm.next_status,
@@ -307,15 +310,26 @@ export default function LeadDetailClient({
                   ))}
                 </select>
               </Field>
-              <label className="flex items-end gap-2 pb-2.5 text-sm text-slate-700">
-                <input
-                  type="checkbox"
-                  className="h-4 w-4 rounded border-slate-300 text-orange-600 focus:ring-orange-500"
-                  checked={callForm.appointment}
-                  onChange={(e) => setCallForm((f) => ({ ...f, appointment: e.target.checked }))}
-                />
-                アポ獲得
-              </label>
+              <div className="flex items-end gap-4 pb-2.5">
+                <label className="flex items-center gap-2 text-sm text-slate-700">
+                  <input
+                    type="checkbox"
+                    className="h-4 w-4 rounded border-slate-300 text-orange-600 focus:ring-orange-500"
+                    checked={callForm.connected}
+                    onChange={(e) => setCallForm((f) => ({ ...f, connected: e.target.checked }))}
+                  />
+                  有効架電（担当者と話せた）
+                </label>
+                <label className="flex items-center gap-2 text-sm text-slate-700">
+                  <input
+                    type="checkbox"
+                    className="h-4 w-4 rounded border-slate-300 text-orange-600 focus:ring-orange-500"
+                    checked={callForm.appointment}
+                    onChange={(e) => setCallForm((f) => ({ ...f, appointment: e.target.checked }))}
+                  />
+                  アポ獲得
+                </label>
+              </div>
             </div>
 
             {callError && <p className={errorCls}>{callError}</p>}
@@ -434,6 +448,9 @@ export default function LeadDetailClient({
                 <div className="flex flex-wrap items-center gap-2 text-xs text-slate-500">
                   <span className="font-medium text-slate-700">{formatDateTime(c.called_at)}</span>
                   <span>・{c.caller ? nameFor(c.caller) : "不明"}</span>
+                  {c.connected && (
+                    <span className="rounded-full bg-sky-100 px-2 py-0.5 font-semibold text-sky-700">有効架電</span>
+                  )}
                   {c.appointment && (
                     <span className="rounded-full bg-amber-100 px-2 py-0.5 font-semibold text-amber-800">アポ獲得</span>
                   )}

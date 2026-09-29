@@ -29,9 +29,7 @@ export async function proxy(request: NextRequest) {
   } = await supabase.auth.getUser();
 
   const path = request.nextUrl.pathname;
-  // /auth/callback は招待メール等のリンクから未ログイン状態でアクセスされるため、
-  // ログイン画面へのリダイレクト対象から除外する。
-  const isAuthRoute = path.startsWith("/login") || path.startsWith("/auth");
+  const isAuthRoute = path.startsWith("/login");
 
   if (!user && !isAuthRoute) {
     const url = request.nextUrl.clone();

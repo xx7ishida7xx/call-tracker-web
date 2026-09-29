@@ -2,12 +2,10 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { headers } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
-import { createAdminClient } from "@/lib/supabase/admin";
 import { getCurrentProfile } from "@/lib/auth";
 import { parseLeadsCsv } from "@/lib/csv";
-import { canManageMembers, type Lead, type Role } from "@/lib/types";
+import type { Lead } from "@/lib/types";
 
 // ---------------------------------------------------------------------------
 // 認証
@@ -51,7 +49,6 @@ export async function addCall(
     result: string;
     notes: string;
     appointment: boolean;
-    connected: boolean;
     recall_at: string | null;
     recall_target: string | null;
     next_status: string;
@@ -67,7 +64,6 @@ export async function addCall(
     result: payload.result,
     notes: payload.notes,
     appointment: payload.appointment,
-    connected: payload.connected,
     recall_at: payload.recall_at,
     recall_target: payload.recall_target,
   });
@@ -123,62 +119,12 @@ export async function createLead(patch: {
 // ---------------------------------------------------------------------------
 export async function updateProfile(
   id: string,
-  patch: { display_name?: string | null; role?: string; team_lead_id?: string | null; org_name?: string | null }
+  patch: { display_name?: string | null; role?: string; team_lead_id?: string | null }
 ) {
   const supabase = await createClient();
   const { error } = await supabase.from("profiles").update(patch).eq("id", id);
   if (error) throw new Error(error.message);
   revalidatePath("/members");
-}
-
-// ---------------------------------------------------------------------------
-// メンバー招待
-//   Supabaseの招待メール（Magic Link）を送り、相手がリンクからパスワードを
-//   設定するとログインできるようになる。Service Role Key が必要な操作なので、
-//   専用の管理者クライアント（RLSを経由しない）を使い、この関数自身で権限確認を行う。
-// ---------------------------------------------------------------------------
-export async function inviteMember(email: string, role: Role) {
-  const me = await getCurrentProfile();
-  if (!me || !canManageMembers(me)) {
-    throw new Error("メンバーを招待する権限がありません。");
-  }
-
-  const cleanEmail = email.trim().toLowerCase();
-  if (!cleanEmail || !cleanEmail.includes("@")) {
-    throw new Error("正しいメールアドレスを入力してください。");
-  }
-
-  // オーナー以外の管理者は、管理者権限を持つメンバーを新しく作ることはできない
-  // （メンバー管理画面でのロール変更と同じ制限を、招待時にもかけている）
-  if (role === "admin" && !me.is_owner) {
-    throw new Error("管理者権限の付与はオーナーのみが行えます。");
-  }
-
-  const h = await headers();
-  const host = h.get("host");
-  const origin = host ? `https://${host}` : undefined;
-
-  const admin = createAdminClient();
-  const { data, error } = await admin.auth.admin.inviteUserByEmail(cleanEmail, {
-    redirectTo: origin ? `${origin}/auth/callback?next=/set-password` : undefined,
-  });
-
-  if (error) {
-    if (/already/i.test(error.message)) {
-      throw new Error("このメールアドレスはすでに登録されています。");
-    }
-    throw new Error(error.message);
-  }
-
-  // 新しく作られたプロフィールに、指定したロールを反映する
-  // （自動作成時点では初期値の「staff」になっているため）
-  const newUserId = data.user?.id;
-  if (newUserId && role !== "staff") {
-    await admin.from("profiles").update({ role }).eq("id", newUserId);
-  }
-
-  revalidatePath("/members");
-  return { email: cleanEmail };
 }
 
 // ---------------------------------------------------------------------------

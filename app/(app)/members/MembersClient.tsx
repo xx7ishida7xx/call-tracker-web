@@ -1,9 +1,9 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { updateProfile } from "@/app/actions";
+import { inviteMember, updateProfile } from "@/app/actions";
 import { canEditProfile, nameFor, ROLE_LABEL, ROLE_ORDER, type Profile, type Role } from "@/lib/types";
-import { btnSecondarySmCls, cardCls, inputCls, sectionTitleCls } from "@/lib/ui";
+import { btnPrimaryCls, btnSecondarySmCls, cardCls, errorCls, inputCls, sectionTitleCls, successCls } from "@/lib/ui";
 
 export default function MembersClient({ me, roster }: { me: Profile; roster: Profile[] }) {
   return (
@@ -16,6 +16,8 @@ export default function MembersClient({ me, roster }: { me: Profile; roster: Pro
             : "管理者として、自分自身と、管理者・オーナー以外のメンバーの表示名・ロールを変更できます。"}
         </p>
       </div>
+
+      <InviteMemberForm canGrantAdmin={me.is_owner} />
 
       <div className={`overflow-x-auto ${cardCls}`}>
         <table className="w-full min-w-[720px] text-sm">
@@ -47,11 +49,18 @@ function MemberRow({ me, member, roster }: { me: Profile; member: Profile; roste
   const [displayName, setDisplayName] = useState(member.display_name ?? "");
   const [role, setRole] = useState<Role>(member.role);
   const [teamLeadId, setTeamLeadId] = useState(member.team_lead_id ?? "");
+  const [orgName, setOrgName] = useState(member.org_name ?? "");
   const [isPending, startTransition] = useTransition();
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const teamLeadOptions = roster.filter((r) => r.role === "teamlead" && r.id !== member.id);
+  const isGuestRole = role === "guest_admin" || role === "guest_member";
+
+  // staff は teamlead の配下、guest_member は guest_admin の配下、というように
+  // 「今選んでいるロールに応じたまとめ役」だけを選択肢に出す
+  const leaderRoleFor: Partial<Record<Role, Role>> = { staff: "teamlead", guest_member: "guest_admin" };
+  const leaderRole = leaderRoleFor[role];
+  const teamLeadOptions = leaderRole ? roster.filter((r) => r.role === leaderRole && r.id !== member.id) : [];
 
   function save() {
     setError(null);
@@ -59,8 +68,8 @@ function MemberRow({ me, member, roster }: { me: Profile; member: Profile; roste
       try {
         await updateProfile(member.id, {
           display_name: displayName || null,
-          ...(canChangeRole ? { role } : {}),
-          ...(editable ? { team_lead_id: teamLeadId || null } : {}),
+          ...(canChangeRole ? { role, org_name: isGuestRole ? orgName || null : null } : {}),
+          ...(editable ? { team_lead_id: leaderRole ? teamLeadId || null : null } : {}),
         });
         setSaved(true);
         setTimeout(() => setSaved(false), 2000);
@@ -95,19 +104,36 @@ function MemberRow({ me, member, roster }: { me: Profile; member: Profile; roste
       </td>
       <td className="px-4 py-2.5">
         {canChangeRole ? (
-          <select className={inputCls} value={role} onChange={(e) => setRole(e.target.value as Role)}>
-            {ROLE_ORDER.map((r) => (
-              <option key={r} value={r}>
-                {ROLE_LABEL[r]}
-              </option>
-            ))}
-          </select>
+          <div className="flex flex-col gap-1">
+            <select className={inputCls} value={role} onChange={(e) => setRole(e.target.value as Role)}>
+              {ROLE_ORDER.map((r) => (
+                <option key={r} value={r}>
+                  {ROLE_LABEL[r]}
+                </option>
+              ))}
+            </select>
+            {isGuestRole && (
+              <input
+                className={`w-36 ${inputCls}`}
+                placeholder="会社名（販売店が決まったら）"
+                value={orgName}
+                onChange={(e) => setOrgName(e.target.value)}
+              />
+            )}
+          </div>
         ) : (
-          ROLE_LABEL[member.role]
+          <>
+            {ROLE_LABEL[member.role]}
+            {member.org_name && (member.role === "guest_admin" || member.role === "guest_member") && (
+              <div className="text-xs text-slate-400">{member.org_name}</div>
+            )}
+          </>
         )}
       </td>
       <td className="px-4 py-2.5">
-        {editable ? (
+        {!leaderRole ? (
+          <span className="text-slate-300">—</span>
+        ) : editable ? (
           <select className={inputCls} value={teamLeadId} onChange={(e) => setTeamLeadId(e.target.value)}>
             <option value="">なし</option>
             {teamLeadOptions.map((t) => (
@@ -132,5 +158,70 @@ function MemberRow({ me, member, roster }: { me: Profile; member: Profile; roste
         )}
       </td>
     </tr>
+  );
+}
+
+// 新しいメンバーをメールで招待するフォーム。
+// Supabaseから招待メールが届き、相手がリンクからパスワードを設定するとログインできるようになる。
+function InviteMemberForm({ canGrantAdmin }: { canGrantAdmin: boolean }) {
+  const inviteRoles = ROLE_ORDER.filter((r) => canGrantAdmin || r !== "admin");
+
+  const [email, setEmail] = useState("");
+  const [role, setRole] = useState<Role>("staff");
+  const [isPending, startTransition] = useTransition();
+  const [sentTo, setSentTo] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  function submit() {
+    setError(null);
+    setSentTo(null);
+    startTransition(async () => {
+      try {
+        const result = await inviteMember(email, role);
+        setSentTo(result.email);
+        setEmail("");
+        setRole("staff");
+      } catch (e) {
+        setError(e instanceof Error ? e.message : "招待に失敗しました。");
+      }
+    });
+  }
+
+  return (
+    <div className={`flex flex-col gap-3 ${cardCls} p-5`}>
+      <div>
+        <h2 className={sectionTitleCls}>新しいメンバーを招待</h2>
+        <p className="mt-1 text-xs text-slate-500">
+          メールアドレスを入力すると、Supabaseから招待メールが届きます。相手がリンクからパスワードを設定すると、そのままログインできるようになります。
+        </p>
+      </div>
+      <div className="flex flex-wrap items-end gap-3">
+        <label className="flex flex-col gap-1 text-xs font-semibold text-slate-500">
+          メールアドレス
+          <input
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            placeholder="例：yamada@example.com"
+            className={`w-64 ${inputCls}`}
+          />
+        </label>
+        <label className="flex flex-col gap-1 text-xs font-semibold text-slate-500">
+          最初のロール
+          <select value={role} onChange={(e) => setRole(e.target.value as Role)} className={inputCls}>
+            {inviteRoles.map((r) => (
+              <option key={r} value={r}>
+                {ROLE_LABEL[r]}
+              </option>
+            ))}
+          </select>
+        </label>
+        <button onClick={submit} disabled={isPending || !email} className={btnPrimaryCls}>
+          {isPending ? "送信中…" : "招待メールを送る"}
+        </button>
+      </div>
+      {error && <p className={errorCls}>{error}</p>}
+      {sentTo && <p className={successCls}>{sentTo} 宛に招待メールを送信しました。</p>}
+    </div>
   );
 }
