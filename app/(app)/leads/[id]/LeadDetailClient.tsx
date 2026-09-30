@@ -2,6 +2,7 @@
 
 import { useRef, useState, useTransition } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { updateLead, addCall, addLeadAttachment, deleteLeadAttachment } from "@/app/actions";
 import {
   nameFor,
@@ -96,6 +97,9 @@ export default function LeadDetailClient({
   attachments,
   meId,
   isAdmin,
+  prevId,
+  nextId,
+  queryString,
 }: {
   lead: Lead;
   calls: CallWithCaller[];
@@ -104,10 +108,21 @@ export default function LeadDetailClient({
   attachments: LeadAttachmentView[];
   meId: string;
   isAdmin: boolean;
+  // 一覧画面での絞り込み・並び順を踏まえた「前のリード／次のリード」のID（無ければnull）
+  prevId: string | null;
+  nextId: string | null;
+  // 一覧画面から引き継いだ絞り込み条件（一覧へ戻る／前へ／次へのリンクに引き継ぐ）
+  queryString: string;
 }) {
+  const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // 「一覧へ戻る」「前へ」「次へ」で、今の絞り込み条件を引き継いだリンク先を作る
+  const listHref = queryString ? `/leads?${queryString}` : "/leads";
+  const prevHref = prevId ? (queryString ? `/leads/${prevId}?${queryString}` : `/leads/${prevId}`) : null;
+  const nextHref = nextId ? (queryString ? `/leads/${nextId}?${queryString}` : `/leads/${nextId}`) : null;
 
   const [form, setForm] = useState({
     company: lead.company,
@@ -221,7 +236,9 @@ export default function LeadDetailClient({
     setCallForm((f) => ({ ...f, resultGroup: "その他", usingFreeText: true, freeText: value, result: value }));
   }
 
-  function submitCall() {
+  // 通話記録を保存する。保存後にそのままこの画面に残る（従来通り）か、
+  // 次のリード／一覧画面へ移動するかを afterSave で切り替える。
+  function submitCall(afterSave?: () => void) {
     setCallError(null);
     if (!callForm.resultGroup || !callForm.result.trim()) {
       setCallError("結果を選択してください。");
@@ -245,6 +262,9 @@ export default function LeadDetailClient({
         });
         setForm((f) => ({ ...f, status: nextStatus }));
         setCallForm(EMPTY_CALL_FORM);
+        if (afterSave) {
+          afterSave();
+        }
       } catch (e) {
         setCallError(e instanceof Error ? e.message : "登録に失敗しました。");
       }
@@ -262,7 +282,7 @@ export default function LeadDetailClient({
   return (
     <div className="flex flex-col gap-6">
       <div className="flex items-center gap-2 text-sm text-slate-500">
-        <Link href="/leads" className="hover:text-orange-600 hover:underline">
+        <Link href={listHref} className="hover:text-orange-600 hover:underline">
           リード一覧
         </Link>
         <span>/</span>
@@ -547,13 +567,45 @@ export default function LeadDetailClient({
 
             {callError && <p className={errorCls}>{callError}</p>}
 
-            <div className="flex items-center gap-2">
-              <button onClick={submitCall} disabled={isPending} className={btnPrimaryCls}>
-                {isPending ? "登録中…" : "通話記録を追加"}
+            <div className="flex flex-wrap items-center gap-2 border-t border-slate-100 pt-3">
+              <button onClick={() => submitCall()} disabled={isPending} className={btnPrimaryCls}>
+                {isPending ? "登録中…" : "登録"}
+              </button>
+              <button
+                onClick={() => submitCall(() => nextHref && router.push(nextHref))}
+                disabled={isPending || !nextHref}
+                title={nextHref ? undefined : "次のリードがありません"}
+                className={btnPrimaryCls}
+              >
+                登録して次へ
+              </button>
+              <button
+                onClick={() => submitCall(() => router.push(listHref))}
+                disabled={isPending}
+                className={btnPrimaryCls}
+              >
+                登録して一覧へ戻る
               </button>
               <button type="button" onClick={resetCallForm} disabled={isPending} className={btnSecondarySmCls}>
                 リセット
               </button>
+              {prevHref ? (
+                <Link href={prevHref} className={btnSecondarySmCls}>
+                  ← 前へ
+                </Link>
+              ) : (
+                <span className={`${btnSecondarySmCls} pointer-events-none opacity-40`}>← 前へ</span>
+              )}
+              {nextHref ? (
+                <Link href={nextHref} className={btnSecondarySmCls}>
+                  次へ →
+                </Link>
+              ) : (
+                <span className={`${btnSecondarySmCls} pointer-events-none opacity-40`}>次へ →</span>
+              )}
+              <Link href={listHref} className={btnSecondarySmCls}>
+                一覧へ戻る
+              </Link>
             </div>
           </div>
         </section>
