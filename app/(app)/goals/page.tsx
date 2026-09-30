@@ -5,6 +5,7 @@ import {
   canManageMembers,
   canManageProfileGoals,
   canViewProfileGoals,
+  isGuestRole,
   nameFor,
   type Profile,
 } from "@/lib/types";
@@ -40,6 +41,9 @@ type Scope = {
   label: string;
   profileIds: string[];
   editableProfile: Profile | null;
+  // このスコープが「ゲストのみ」で構成されているか。ゲストのみの場合、稼働日の判定で
+  // 会社全体の登録は反映させない(個人の登録・既定値のみで判定する)。
+  guestOnly: boolean;
 };
 
 function resolveScope(scopeParam: string | undefined, me: Profile, roster: Profile[]): Scope {
@@ -49,14 +53,22 @@ function resolveScope(scopeParam: string | undefined, me: Profile, roster: Profi
   const key = sepIndex === -1 ? "" : (scopeParam ?? "").slice(sepIndex + 1);
 
   if (kindRaw === "all" && canManageMembers(me)) {
-    return { kind: "all", label: "全社", profileIds: roster.map((p) => p.id), editableProfile: null };
+    return { kind: "all", label: "全社", profileIds: roster.map((p) => p.id), editableProfile: null, guestOnly: false };
   }
   if (kindRaw === "org" && key) {
     const canSeeOrg = canManageMembers(me) || me.org_name === key;
     if (canSeeOrg) {
       const members = roster.filter((p) => p.org_name === key);
       if (members.length > 0) {
-        return { kind: "org", label: `${key}（全体）`, profileIds: members.map((p) => p.id), editableProfile: null };
+        // org_name は社内メンバー(ミライアゴーゴー)にもゲスト会社にも設定されるため、
+        // この会社の全員がゲストロールのときだけ「ゲストのみ」として扱う。
+        return {
+          kind: "org",
+          label: `${key}(全体)`,
+          profileIds: members.map((p) => p.id),
+          editableProfile: null,
+          guestOnly: members.every((p) => isGuestRole(p.role)),
+        };
       }
     }
   }
@@ -65,31 +77,50 @@ function resolveScope(scopeParam: string | undefined, me: Profile, roster: Profi
     if (leader && (leader.id === me.id || canManageMembers(me))) {
       const members = roster.filter((p) => p.team_lead_id === key);
       const ids = Array.from(new Set([key, ...members.map((p) => p.id)]));
-      return { kind: "team", label: `${nameFor(leader)} チーム`, profileIds: ids, editableProfile: null };
+      return {
+        kind: "team",
+        label: `${nameFor(leader)} チーム`,
+        profileIds: ids,
+        editableProfile: null,
+        guestOnly: isGuestRole(leader.role),
+      };
     }
   }
   if (kindRaw === "self" && key) {
     const target = byId.get(key);
     if (target && canViewProfileGoals(me, target)) {
       const editable = canManageProfileGoals(me, target) ? target : null;
-      return { kind: "self", label: nameFor(target), profileIds: [target.id], editableProfile: editable };
+      return {
+        kind: "self",
+        label: nameFor(target),
+        profileIds: [target.id],
+        editableProfile: editable,
+        guestOnly: isGuestRole(target.role),
+      };
     }
   }
 
-  // 既定値：管理者は全社、チームリーダー系は自分のチーム、それ以外は自分自身
+  // 既定値:管理者は全社、チームリーダー系は自分のチーム、それ以外は自分自身
   if (canManageMembers(me)) {
-    return { kind: "all", label: "全社", profileIds: roster.map((p) => p.id), editableProfile: null };
+    return { kind: "all", label: "全社", profileIds: roster.map((p) => p.id), editableProfile: null, guestOnly: false };
   }
   if (me.role === "teamlead" || me.role === "guest_admin") {
     const members = roster.filter((p) => p.team_lead_id === me.id);
     const ids = Array.from(new Set([me.id, ...members.map((p) => p.id)]));
-    return { kind: "team", label: `${nameFor(me)} チーム`, profileIds: ids, editableProfile: null };
+    return {
+      kind: "team",
+      label: `${nameFor(me)} チーム`,
+      profileIds: ids,
+      editableProfile: null,
+      guestOnly: isGuestRole(me.role),
+    };
   }
   return {
     kind: "self",
     label: nameFor(me),
     profileIds: [me.id],
     editableProfile: canManageProfileGoals(me, me) ? me : null,
+    guestOnly: isGuestRole(me.role),
   };
 }
 
@@ -145,7 +176,7 @@ export default async function GoalsPage({
   } else if (me.org_name) {
     overallItems.push({
       href: hrefFor(`org:${me.org_name}`),
-      label: `${me.org_name}（全体）`,
+      label: `${me.org_name}(全体)`,
       active: isActive(`org:${me.org_name}`),
     });
   }
@@ -155,7 +186,7 @@ export default async function GoalsPage({
     const orgNames = Array.from(new Set(roster.map((p) => p.org_name).filter((v): v is string => !!v))).sort();
     if (orgNames.length > 0) {
       groups.push({
-        group: "会社ごと（ゲスト）",
+        group: "会社ごと",
         items: orgNames.map((org) => ({ href: hrefFor(`org:${org}`), label: org, active: isActive(`org:${org}`) })),
       });
     }
@@ -192,7 +223,9 @@ export default async function GoalsPage({
     scope.kind === "self" ? await getWorkDayOverrideMap(supabase, scope.profileIds[0], month) : null;
 
   const dates = datesInMonth(month);
-  const dayStatuses = computeMonthWorkStatus(month, companyOverrides, personalOverrides);
+  // ゲストのみのスコープでは、会社全体の登録を反映させない(個人の登録・既定値のみで判定する)。
+  const companyOverridesForScope = scope.guestOnly ? new Map<string, boolean>() : companyOverrides;
+  const dayStatuses = computeMonthWorkStatus(month, companyOverridesForScope, personalOverrides);
   const workingByDate = new Map(dayStatuses.map((d) => [d.date, d.isWorking]));
   const today = todayKey();
   const remainingWorkingDays = countRemainingWorkingDays(dayStatuses, today);
@@ -256,7 +289,7 @@ export default async function GoalsPage({
 
   return (
     <div className="flex flex-col gap-6 lg:flex-row">
-      {/* 表示対象の選択（会社全体・会社ごと・チーム・個人） */}
+      {/* 表示対象の選択(会社全体・会社ごと・チーム・個人) */}
       <aside className="w-full shrink-0 lg:w-56">
         <div className={`${cardCls} sticky top-4 flex flex-col gap-4 p-4`}>
           {groups.map((g) => (
@@ -308,29 +341,29 @@ export default async function GoalsPage({
             {formatMonthLabel(month)}の実績・目標
           </h2>
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-            <StatChip label="コール件数（目標/実績）" value={`${actuals.callsTotal.toLocaleString()} / ${totalCallTarget.toLocaleString()}`} />
-            <StatChip label="アポ件数（目標/実績）" value={`${actuals.appointmentTotal.toLocaleString()} / ${appointmentTarget.toLocaleString()}`} />
-            <StatChip label="契約件数（目標/実績）" value={`${actuals.contractTotal.toLocaleString()} / ${contractTarget.toLocaleString()}`} />
+            <StatChip label="コール件数(目標/実績)" value={`${actuals.callsTotal.toLocaleString()} / ${totalCallTarget.toLocaleString()}`} />
+            <StatChip label="アポ件数(目標/実績)" value={`${actuals.appointmentTotal.toLocaleString()} / ${appointmentTarget.toLocaleString()}`} />
+            <StatChip label="契約件数(目標/実績)" value={`${actuals.contractTotal.toLocaleString()} / ${contractTarget.toLocaleString()}`} />
             <StatChip label="残り稼働日" value={`${remainingWorkingDays} / ${totalWorkingDays}日`} />
           </div>
           {dailyPace !== null && remainingCallsNeeded > 0 && (
             <p className="mt-3 text-xs text-slate-600">
               コール目標まで残り <span className="font-bold text-orange-700">{remainingCallsNeeded.toLocaleString()}件</span>
-              　（残り稼働日から逆算すると、1日あたり
-              <span className="font-bold text-orange-700"> {dailyPace.toLocaleString()}件</span> のペースが必要です）
+              　(残り稼働日から逆算すると、1日あたり
+              <span className="font-bold text-orange-700"> {dailyPace.toLocaleString()}件</span> のペースが必要です)
             </p>
           )}
         </section>
 
-        {/* 累計コール件数：目標 vs 実績のグラフ */}
+        {/* 累計コール件数:目標 vs 実績のグラフ */}
         <section className={`${cardCls} p-5`}>
-          <h2 className={sectionTitleCls}>コール件数の推移（月内累計）</h2>
+          <h2 className={sectionTitleCls}>コール件数の推移(月内累計)</h2>
           <div className="mt-3 flex items-center gap-4 text-xs">
             <span className="flex items-center gap-1.5 text-slate-500">
-              <span className="inline-block h-2.5 w-2.5 rounded-full bg-slate-300" />目標（累計）
+              <span className="inline-block h-2.5 w-2.5 rounded-full bg-slate-300" />目標(累計)
             </span>
             <span className="flex items-center gap-1.5 text-slate-500">
-              <span className="inline-block h-2.5 w-2.5 rounded-full bg-orange-500" />実績（累計）
+              <span className="inline-block h-2.5 w-2.5 rounded-full bg-orange-500" />実績(累計)
             </span>
           </div>
           <svg viewBox={`0 0 ${chartW} ${chartH}`} className="mt-2 w-full" preserveAspectRatio="none">
@@ -342,7 +375,7 @@ export default async function GoalsPage({
 
         {/* 週次まとめ */}
         <section className={`${cardCls} p-5`}>
-          <h2 className={sectionTitleCls}>週次まとめ（コール件数）</h2>
+          <h2 className={sectionTitleCls}>週次まとめ(コール件数)</h2>
           <div className="mt-3 overflow-x-auto">
             <table className="w-full min-w-[360px] text-sm">
               <thead>
@@ -369,7 +402,7 @@ export default async function GoalsPage({
           </div>
         </section>
 
-        {/* 個人の目標入力（編集権限がある場合のみ表示） */}
+        {/* 個人の目標入力(編集権限がある場合のみ表示) */}
         {scope.editableProfile && (
           <>
             <section className={`${cardCls} p-5`}>
@@ -404,7 +437,7 @@ export default async function GoalsPage({
             <section className={`${cardCls} p-5`}>
               <h2 className={sectionTitleCls}>{nameFor(scope.editableProfile)} さんの日別コール件数目標</h2>
               <p className="mt-1 text-xs text-slate-500">
-                グレーの日は稼働日カレンダー上「休み」に設定されています（土日・祝日を含む）。
+                グレーの日は稼働日カレンダー上「休み」に設定されています(土日・祝日を含む)。
               </p>
               <form action={saveDailyCallGoals.bind(null, scope.editableProfile.id, month)} className="mt-3 flex flex-col gap-3">
                 <div className="grid grid-cols-7 gap-1.5 text-center text-[11px] font-semibold text-slate-400">
