@@ -49,8 +49,8 @@ export function searchParamsToQueryString(sp: Record<string, string | string[] |
   return params.toString();
 }
 
-// コール履歴（コール者・結果・ランク・激アツ!!）による絞り込みは calls テーブル側の条件なので、
-// 先に該当するリードIDを集めておく。該当条件が無ければ null（絞り込みなし）を返す。
+// コール履歴(コール者・結果・ランク・激アツ!!)による絞り込みは calls テーブル側の条件なので、
+// 先に該当するリードIDを集めておく。該当条件が無ければ null(絞り込みなし)を返す。
 export async function getCallFilteredLeadIds(
   supabase: SupabaseClient,
   sp: LeadSearchParams,
@@ -66,10 +66,78 @@ export async function getCallFilteredLeadIds(
   return Array.from(new Set(((callRows ?? []) as { lead_id: string }[]).map((r) => r.lead_id)));
 }
 
-// leads テーブルへのクエリに、検索条件をすべて適用する（.select()済みのクエリに対して使う）。
+// leads テーブルへのクエリに、検索条件をすべて適用する(.select()済みのクエリに対して使う)。
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function applyLeadFilters<Q extends { eq: any; ilike: any; in: any; gte: any; lte: any; contains: any; not: any }>(
   query: Q,
   sp: LeadSearchParams,
   genreList: string[],
-  prefList:
+  prefList: string[],
+  cmsList: string[],
+  callLeadIds: string[] | null
+): Q {
+  let q = query;
+  if (sp.company && sp.company.trim()) {
+    const c = sp.company.trim().replace(/[%,]/g, "");
+    q = q.ilike("company", `%${c}%`);
+  }
+  if (sp.phone_prefix && sp.phone_prefix.trim()) {
+    const p = sp.phone_prefix.trim().replace(/[%,]/g, "");
+    q = q.ilike("phone", `${p}%`);
+  }
+  if (sp.rep && sp.rep.trim()) {
+    const r = sp.rep.trim().replace(/[%,]/g, "");
+    q = q.ilike("rep_name", `%${r}%`);
+  }
+  if (sp.credit_company && sp.credit_company.trim()) {
+    // credit_company 列は元々「信販会社」用だったが、現在は「担当者名(顧客側)」として
+    // 使っている(列名・パラメータ名は互換性のため変更していない)。
+    const cc = sp.credit_company.trim().replace(/[%,]/g, "");
+    q = q.ilike("credit_company", `%${cc}%`);
+  }
+  if (sp.status) q = q.eq("status", sp.status);
+  if (sp.assignee) q = q.eq("assigned_to", sp.assignee);
+  if (genreList.length > 0) q = q.in("genre", genreList);
+  if (prefList.length > 0) q = q.in("pref", prefList);
+  if (cmsList.length > 0) q = q.in("cms", cmsList);
+  if (sp.recall_from) q = q.gte("recall_at", new Date(`${sp.recall_from}T00:00:00`).toISOString());
+  if (sp.recall_to) q = q.lte("recall_at", new Date(`${sp.recall_to}T23:59:59`).toISOString());
+  if (sp.has_url === "yes") q = q.contains("contracts", [{ product: "HP", active: true }]);
+  if (sp.has_url === "no") q = q.not("contracts", "cs", JSON.stringify([{ product: "HP", active: true }]));
+  if (sp.has_meo === "yes") q = q.contains("contracts", [{ product: "MEO", active: true }]);
+  if (sp.has_meo === "no") q = q.not("contracts", "cs", JSON.stringify([{ product: "MEO", active: true }]));
+  if (sp.has_sns === "yes") q = q.contains("contracts", [{ product: "SNS運用", active: true }]);
+  if (sp.has_sns === "no") q = q.not("contracts", "cs", JSON.stringify([{ product: "SNS運用", active: true }]));
+  if (sp.acquisition_desire) q = q.eq("acquisition_desire", sp.acquisition_desire);
+  if (callLeadIds !== null) {
+    q = q.in("id", callLeadIds.length > 0 ? callLeadIds : ["00000000-0000-0000-0000-000000000000"]);
+  }
+  return q;
+}
+
+// 現在の絞り込み条件のもとで、指定したリードの「前・次」のリードIDを求める。
+export async function getAdjacentLeadIds(
+  supabase: SupabaseClient,
+  sp: LeadSearchParams,
+  currentLeadId: string
+): Promise<{ prevId: string | null; nextId: string | null; index: number; total: number } | null> {
+  const genreList = toList(sp.genre);
+  const prefList = toList(sp.pref);
+  const cmsList = toList(sp.cms);
+  const callRankList = toList(sp.call_rank);
+  const callLeadIds = await getCallFilteredLeadIds(supabase, sp, callRankList);
+
+  let query = supabase.from("leads").select("id").order("created_at", { ascending: false });
+  query = applyLeadFilters(query, sp, genreList, prefList, cmsList, callLeadIds);
+
+  const { data } = await query;
+  const ids = ((data ?? []) as { id: string }[]).map((r) => r.id);
+  const index = ids.indexOf(currentLeadId);
+  if (index === -1) return null;
+  return {
+    prevId: index > 0 ? ids[index - 1] : null,
+    nextId: index < ids.length - 1 ? ids[index + 1] : null,
+    index,
+    total: ids.length,
+  };
+}
