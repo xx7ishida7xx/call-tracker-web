@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState } from "react";
+import Link from "next/link";
 import { signIn } from "@/app/actions";
 import { btnPrimaryCls, errorCls, inputCls } from "@/lib/ui";
 
@@ -43,6 +44,13 @@ export default function LoginPage() {
             {pending ? "ログイン中…" : "ログイン"}
           </button>
         </form>
+
+        <Link
+          href="/forgot-password"
+          className="mt-4 block text-center text-xs font-medium text-slate-500 hover:text-orange-600 hover:underline"
+        >
+          パスワードをお忘れですか？
+        </Link>
       </div>
     </div>
   );

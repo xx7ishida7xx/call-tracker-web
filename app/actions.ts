@@ -267,6 +267,90 @@ export async function inviteMember(email: string, role: Role) {
 }
 
 // ---------------------------------------------------------------------------
+// パスワード再設定
+//   Supabase標準の「パスワード再設定メール」を送るだけで、新しいパスワードが
+//   何になるかはこのアプリのどこにも残らない（本人だけがメール経由で設定する）。
+//   ・requestPasswordReset：ログイン画面から本人が申請する場合
+//   ・sendMemberPasswordReset：メンバー管理画面からオーナー・管理者が代理で送る場合
+// ---------------------------------------------------------------------------
+async function sendResetEmail(email: string) {
+  const h = await headers();
+  const host = h.get("host");
+  const origin = host ? `https://${host}` : undefined;
+
+  const supabase = await createClient();
+  const { error } = await supabase.auth.resetPasswordForEmail(email, {
+    redirectTo: origin ? `${origin}/auth/callback?next=/set-password` : undefined,
+  });
+  if (error) throw new Error(error.message);
+}
+
+export async function requestPasswordReset(email: string) {
+  const cleanEmail = email.trim().toLowerCase();
+  if (!cleanEmail || !cleanEmail.includes("@")) {
+    throw new Error("正しいメールアドレスを入力してください。");
+  }
+  // 登録の有無にかかわらず同じ結果を返す（メールアドレスの存在有無を外部に漏らさないため）
+  await sendResetEmail(cleanEmail);
+}
+
+export async function sendMemberPasswordReset(memberId: string) {
+  const me = await getCurrentProfile();
+  if (!me || !canManageMembers(me)) {
+    throw new Error("パスワード再設定メールを送る権限がありません。");
+  }
+  const supabase = await createClient();
+  const { data: target, error } = await supabase
+    .from("profiles")
+    .select("email")
+    .eq("id", memberId)
+    .maybeSingle();
+  if (error) throw new Error(error.message);
+  if (!target) throw new Error("メンバーが見つかりませんでした。");
+
+  await sendResetEmail(target.email);
+  return { email: target.email };
+}
+
+// ---------------------------------------------------------------------------
+// メンバー削除
+//   auth.users を削除すると、profiles は on delete cascade で自動的に削除される。
+//   Service Role Key が必要な操作なので、専用の管理者クライアントを使い、
+//   この関数自身で権限確認を行う。
+// ---------------------------------------------------------------------------
+export async function deleteMember(memberId: string) {
+  const me = await getCurrentProfile();
+  if (!me || !canManageMembers(me)) {
+    throw new Error("メンバーを削除する権限がありません。");
+  }
+  if (me.id === memberId) {
+    throw new Error("自分自身を削除することはできません。");
+  }
+
+  const admin = createAdminClient();
+  const { data: target, error: targetError } = await admin
+    .from("profiles")
+    .select("*")
+    .eq("id", memberId)
+    .maybeSingle();
+  if (targetError) throw new Error(targetError.message);
+  if (!target) throw new Error("メンバーが見つかりませんでした。");
+  if (target.is_owner) {
+    throw new Error("オーナーを削除することはできません。");
+  }
+  // オーナー以外の管理者は、管理者権限を持つメンバーを削除できない
+  // （メンバー管理画面でのロール変更・招待と同じ制限）
+  if (!me.is_owner && target.role === "admin") {
+    throw new Error("管理者の削除はオーナーのみが行えます。");
+  }
+
+  const { error } = await admin.auth.admin.deleteUser(memberId);
+  if (error) throw new Error(error.message);
+
+  revalidatePath("/members");
+}
+
+// ---------------------------------------------------------------------------
 // CSV インポート
 // ---------------------------------------------------------------------------
 export async function importLeadsCsv(csvText: string, assignTo: string | null) {

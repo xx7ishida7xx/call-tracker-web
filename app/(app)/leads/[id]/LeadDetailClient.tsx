@@ -789,7 +789,7 @@ function AttachmentGroup({
           ref={fileInputRef}
           type="file"
           accept=".pdf,.png,.jpg,.jpeg,.webp,.xlsx,.xls,.doc,.docx"
-          className="text-xs text-slate-600 file:mr-2 file:rounded-md file:border-0 file:bg-white file:px-2 file:py-1 file:text-xs file:font-semibold file:text-slate-600"
+          className="w-full rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-xs text-slate-500 file:mr-3 file:cursor-pointer file:rounded-md file:border file:border-orange-200 file:bg-orange-50 file:px-3 file:py-1.5 file:text-xs file:font-semibold file:text-orange-700 file:shadow-sm hover:file:bg-orange-100"
         />
         <input
           type="text"

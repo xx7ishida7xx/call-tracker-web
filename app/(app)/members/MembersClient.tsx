@@ -1,11 +1,20 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { inviteMember, updateProfile } from "@/app/actions";
+import { deleteMember, inviteMember, sendMemberPasswordReset, updateProfile } from "@/app/actions";
 import { canEditProfile, nameFor, ROLE_LABEL, ROLE_ORDER, type Profile, type Role } from "@/lib/types";
+import { formatDateTime } from "@/lib/format";
 import { btnPrimaryCls, btnSecondarySmCls, cardCls, errorCls, inputCls, sectionTitleCls, successCls } from "@/lib/ui";
 
-export default function MembersClient({ me, roster }: { me: Profile; roster: Profile[] }) {
+export default function MembersClient({
+  me,
+  roster,
+  lastSignIns,
+}: {
+  me: Profile;
+  roster: Profile[];
+  lastSignIns: Record<string, string | null>;
+}) {
   return (
     <div className="flex flex-col gap-4">
       <div>
@@ -20,7 +29,7 @@ export default function MembersClient({ me, roster }: { me: Profile; roster: Pro
       <InviteMemberForm canGrantAdmin={me.is_owner} />
 
       <div className={`overflow-x-auto ${cardCls}`}>
-        <table className="w-full min-w-[720px] text-sm">
+        <table className="w-full min-w-[960px] text-sm">
           <thead>
             <tr className="border-b border-orange-100 bg-orange-50/60 text-left text-xs font-semibold text-slate-500">
               <th className="px-4 py-2.5">メールアドレス</th>
@@ -28,12 +37,13 @@ export default function MembersClient({ me, roster }: { me: Profile; roster: Pro
               <th className="px-4 py-2.5">表示名</th>
               <th className="px-4 py-2.5">ロール</th>
               <th className="px-4 py-2.5">所属チームリーダー</th>
+              <th className="px-4 py-2.5">最終ログイン</th>
               <th className="px-4 py-2.5" />
             </tr>
           </thead>
           <tbody>
             {roster.map((m) => (
-              <MemberRow key={m.id} me={me} member={m} roster={roster} />
+              <MemberRow key={m.id} me={me} member={m} roster={roster} lastSignIn={lastSignIns[m.id] ?? null} />
             ))}
           </tbody>
         </table>
@@ -42,9 +52,23 @@ export default function MembersClient({ me, roster }: { me: Profile; roster: Pro
   );
 }
 
-function MemberRow({ me, member, roster }: { me: Profile; member: Profile; roster: Profile[] }) {
+function MemberRow({
+  me,
+  member,
+  roster,
+  lastSignIn,
+}: {
+  me: Profile;
+  member: Profile;
+  roster: Profile[];
+  lastSignIn: string | null;
+}) {
   const editable = canEditProfile(me, member);
   const canChangeRole = editable && (me.is_owner || (me.role === "admin" && me.id !== member.id));
+  // 削除・パスワード再設定は「オーナーを消せない／管理者を消せるのはオーナーだけ」
+  // 「自分自身は対象外」という、ロール変更と同じ考え方の制限をかけている
+  const canManageThisMember =
+    !member.is_owner && me.id !== member.id && (me.is_owner || (me.role === "admin" && member.role !== "admin"));
 
   const [displayName, setDisplayName] = useState(member.display_name ?? "");
   const [role, setRole] = useState<Role>(member.role);
@@ -53,6 +77,40 @@ function MemberRow({ me, member, roster }: { me: Profile; member: Profile; roste
   const [isPending, startTransition] = useTransition();
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const [resetSent, setResetSent] = useState(false);
+  const [rowActionPending, startRowActionTransition] = useTransition();
+  const [rowActionError, setRowActionError] = useState<string | null>(null);
+
+  function sendReset() {
+    setRowActionError(null);
+    setResetSent(false);
+    startRowActionTransition(async () => {
+      try {
+        await sendMemberPasswordReset(member.id);
+        setResetSent(true);
+      } catch (e) {
+        setRowActionError(e instanceof Error ? e.message : "送信に失敗しました。");
+      }
+    });
+  }
+
+  function handleDeleteMember() {
+    if (
+      !window.confirm(
+        `${nameFor(member)}（${member.email}）を削除しますか？\nこの操作は元に戻せません。担当していたリードは「未割当」になります。`
+      )
+    )
+      return;
+    setRowActionError(null);
+    startRowActionTransition(async () => {
+      try {
+        await deleteMember(member.id);
+      } catch (e) {
+        setRowActionError(e instanceof Error ? e.message : "削除に失敗しました。");
+      }
+    });
+  }
 
   const isGuestRole = role === "guest_admin" || role === "guest_member";
 
@@ -146,16 +204,43 @@ function MemberRow({ me, member, roster }: { me: Profile; member: Profile; roste
           roster.find((r) => r.id === member.team_lead_id)?.name ?? "なし"
         )}
       </td>
-      <td className="px-4 py-2.5 text-right">
-        {editable && (
-          <div className="flex items-center justify-end gap-2">
-            {error && <span className="text-xs text-red-600">{error}</span>}
-            {saved && <span className="text-xs font-medium text-emerald-600">保存しました</span>}
-            <button onClick={save} disabled={isPending} className={btnSecondarySmCls}>
-              保存
-            </button>
-          </div>
+      <td className="px-4 py-2.5 text-slate-500">
+        {lastSignIn ? (
+          formatDateTime(lastSignIn)
+        ) : (
+          <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-800">
+            未ログイン
+          </span>
         )}
+      </td>
+      <td className="px-4 py-2.5 text-right">
+        <div className="flex flex-col items-end gap-1.5">
+          {editable && (
+            <div className="flex items-center justify-end gap-2">
+              {error && <span className="text-xs text-red-600">{error}</span>}
+              {saved && <span className="text-xs font-medium text-emerald-600">保存しました</span>}
+              <button onClick={save} disabled={isPending} className={btnSecondarySmCls}>
+                保存
+              </button>
+            </div>
+          )}
+          {canManageThisMember && (
+            <div className="flex items-center justify-end gap-2">
+              {rowActionError && <span className="text-xs text-red-600">{rowActionError}</span>}
+              {resetSent && <span className="text-xs font-medium text-emerald-600">送信しました</span>}
+              <button onClick={sendReset} disabled={rowActionPending} className={btnSecondarySmCls}>
+                パスワード再設定メールを送る
+              </button>
+              <button
+                onClick={handleDeleteMember}
+                disabled={rowActionPending}
+                className={`${btnSecondarySmCls} border-rose-200 text-rose-600 hover:border-rose-300 hover:bg-rose-50 hover:text-rose-700`}
+              >
+                削除
+              </button>
+            </div>
+          )}
+        </div>
       </td>
     </tr>
   );
