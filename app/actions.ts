@@ -7,7 +7,7 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getCurrentProfile } from "@/lib/auth";
 import { parseLeadsCsv } from "@/lib/csv";
-import { canManageMembers, type Lead, type Role } from "@/lib/types";
+import { canManageMembers, ATTACHMENT_CATEGORIES, MAX_ATTACHMENT_SIZE, type AttachmentCategory, type Lead, type Role } from "@/lib/types";
 
 // ---------------------------------------------------------------------------
 // 認証
@@ -93,6 +93,85 @@ export async function addCall(
 
   revalidatePath(`/leads/${leadId}`);
   revalidatePath("/leads");
+}
+
+// ---------------------------------------------------------------------------
+// リードへのファイル添付（診断レポート／アポ表）
+//   実ファイルは Supabase Storage の lead-attachments バケット（非公開）に保存し、
+//   lead_attachments テーブルにはメタ情報だけを持つ。ダウンロードは署名付きURL経由。
+// ---------------------------------------------------------------------------
+const ATTACHMENT_BUCKET = "lead-attachments";
+
+// ファイル名からStorageのパスとして問題になりうる文字（スラッシュ・引用符など）だけを置き換える
+function sanitizeAttachmentFileName(name: string): string {
+  return name.replace(/[/\\?%*:|"<>]/g, "_").trim() || "ファイル";
+}
+
+export async function addLeadAttachment(leadId: string, formData: FormData) {
+  const supabase = await createClient();
+  const me = await getCurrentProfile();
+  if (!me) throw new Error("ログインが必要です。");
+
+  const category = String(formData.get("category") || "");
+  if (!(ATTACHMENT_CATEGORIES as readonly string[]).includes(category)) {
+    throw new Error("添付ファイルの区分が正しくありません。");
+  }
+  const note = String(formData.get("note") || "").trim();
+  const file = formData.get("file");
+  if (!(file instanceof File) || file.size === 0) {
+    throw new Error("ファイルを選択してください。");
+  }
+  if (file.size > MAX_ATTACHMENT_SIZE) {
+    throw new Error("ファイルサイズが大きすぎます（25MBまでです）。");
+  }
+
+  const path = `${leadId}/${crypto.randomUUID()}-${sanitizeAttachmentFileName(file.name)}`;
+
+  const { error: uploadError } = await supabase.storage
+    .from(ATTACHMENT_BUCKET)
+    .upload(path, file, { contentType: file.type || "application/octet-stream" });
+  if (uploadError) throw new Error(uploadError.message);
+
+  const { error: insertError } = await supabase.from("lead_attachments").insert({
+    lead_id: leadId,
+    category: category as AttachmentCategory,
+    file_path: path,
+    file_name: file.name,
+    file_size: file.size,
+    mime_type: file.type || "",
+    note,
+    uploaded_by: me.id,
+  });
+  if (insertError) {
+    // テーブルへの登録に失敗した場合、アップロード済みのファイルだけが残らないようにする
+    await supabase.storage.from(ATTACHMENT_BUCKET).remove([path]);
+    throw new Error(insertError.message);
+  }
+
+  revalidatePath(`/leads/${leadId}`);
+}
+
+export async function deleteLeadAttachment(attachmentId: string, leadId: string) {
+  const supabase = await createClient();
+  const me = await getCurrentProfile();
+  if (!me) throw new Error("ログインが必要です。");
+
+  // delete() に .select() を続けることで「実際に削除できた行」を受け取れる。
+  // RLS（本人 or 管理者のみ削除可）に該当しない場合は0件のまま静かに終わるだけなので、
+  // 0件だったら権限エラーとして扱う（Storage側のファイルも消さない）。
+  const { data: deletedRows, error: deleteRowError } = await supabase
+    .from("lead_attachments")
+    .delete()
+    .eq("id", attachmentId)
+    .select("file_path");
+  if (deleteRowError) throw new Error(deleteRowError.message);
+  if (!deletedRows || deletedRows.length === 0) {
+    throw new Error("このファイルを削除する権限がありません（アップロード本人か管理者のみ削除できます）。");
+  }
+
+  await supabase.storage.from(ATTACHMENT_BUCKET).remove([deletedRows[0].file_path]);
+
+  revalidatePath(`/leads/${leadId}`);
 }
 
 export async function createLead(patch: {

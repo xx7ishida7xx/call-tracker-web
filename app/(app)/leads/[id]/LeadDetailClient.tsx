@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useRef, useState, useTransition } from "react";
 import Link from "next/link";
-import { updateLead, addCall } from "@/app/actions";
+import { updateLead, addCall, addLeadAttachment, deleteLeadAttachment } from "@/app/actions";
 import {
   nameFor,
   LEAD_STATUSES,
@@ -16,6 +16,8 @@ import {
   getCallOutcome,
   ACQUISITION_DESIRE_OPTIONS,
   ACQUISITION_DESIRE_LABEL,
+  ATTACHMENT_CATEGORIES,
+  type AttachmentCategory,
   type CallOutcome,
   type Lead,
   type Profile,
@@ -59,6 +61,21 @@ type CallWithCaller = Call & {
   caller: Pick<Profile, "id" | "name" | "display_name" | "email"> | null;
 };
 
+// 添付ファイル1件分の表示用データ。ダウンロードURLは非公開バケットの署名付きURLで、
+// サーバー側（page.tsx）で発行済みのものを受け取る（期限切れの場合は null）。
+export type LeadAttachmentView = {
+  id: string;
+  lead_id: string;
+  category: string;
+  file_name: string;
+  file_size: number;
+  note: string;
+  uploaded_by: string | null;
+  uploaded_by_name: string;
+  created_at: string;
+  url: string | null;
+};
+
 const EMPTY_CALL_FORM = {
   resultGroup: "",
   result: "",
@@ -76,11 +93,17 @@ export default function LeadDetailClient({
   calls,
   roster,
   canAssign,
+  attachments,
+  meId,
+  isAdmin,
 }: {
   lead: Lead;
   calls: CallWithCaller[];
   roster: Profile[];
   canAssign: boolean;
+  attachments: LeadAttachmentView[];
+  meId: string;
+  isAdmin: boolean;
 }) {
   const [isPending, startTransition] = useTransition();
   const [saved, setSaved] = useState(false);
@@ -679,6 +702,148 @@ export default function LeadDetailClient({
           </ul>
         )}
       </section>
+
+      {/* 添付ファイル（診断レポート／アポ表） */}
+      <section className={`${cardCls} p-5`}>
+        <h2 className={`mb-1 ${sectionTitleCls}`}>添付ファイル</h2>
+        <p className="mb-4 text-xs text-slate-400">
+          診断レポートやアポ表をアップロードしておくと、ここで過去分もあわせて確認できます。
+        </p>
+        <div className="grid gap-6 sm:grid-cols-2">
+          {ATTACHMENT_CATEGORIES.map((category) => (
+            <AttachmentGroup
+              key={category}
+              leadId={lead.id}
+              category={category}
+              items={attachments.filter((a) => a.category === category)}
+              meId={meId}
+              isAdmin={isAdmin}
+            />
+          ))}
+        </div>
+      </section>
+    </div>
+  );
+}
+
+// 添付ファイルの区分（診断レポート／アポ表）ごとの、アップロードフォーム＋履歴一覧
+function AttachmentGroup({
+  leadId,
+  category,
+  items,
+  meId,
+  isAdmin,
+}: {
+  leadId: string;
+  category: AttachmentCategory;
+  items: LeadAttachmentView[];
+  meId: string;
+  isAdmin: boolean;
+}) {
+  const [isPending, startTransition] = useTransition();
+  const [error, setError] = useState<string | null>(null);
+  const [note, setNote] = useState("");
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  function handleUpload(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    setError(null);
+    const file = fileInputRef.current?.files?.[0];
+    if (!file) {
+      setError("ファイルを選択してください。");
+      return;
+    }
+    const formData = new FormData();
+    formData.set("file", file);
+    formData.set("category", category);
+    formData.set("note", note);
+    startTransition(async () => {
+      try {
+        await addLeadAttachment(leadId, formData);
+        setNote("");
+        if (fileInputRef.current) fileInputRef.current.value = "";
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "アップロードに失敗しました。");
+      }
+    });
+  }
+
+  function handleDelete(id: string) {
+    if (!window.confirm("このファイルを削除しますか？元に戻せません。")) return;
+    setError(null);
+    startTransition(async () => {
+      try {
+        await deleteLeadAttachment(id, leadId);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "削除に失敗しました。");
+      }
+    });
+  }
+
+  return (
+    <div className="flex flex-col gap-3">
+      <h3 className="text-sm font-bold text-slate-700">{category}</h3>
+
+      <form onSubmit={handleUpload} className="flex flex-col gap-2 rounded-xl border border-slate-200 bg-slate-50/60 p-3">
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept=".pdf,.png,.jpg,.jpeg,.webp,.xlsx,.xls,.doc,.docx"
+          className="text-xs text-slate-600 file:mr-2 file:rounded-md file:border-0 file:bg-white file:px-2 file:py-1 file:text-xs file:font-semibold file:text-slate-600"
+        />
+        <input
+          type="text"
+          placeholder="メモ（任意）"
+          value={note}
+          onChange={(e) => setNote(e.target.value)}
+          className={inputCls}
+        />
+        {error && <p className={errorCls}>{error}</p>}
+        <button type="submit" disabled={isPending} className={`self-start ${btnSecondarySmCls}`}>
+          {isPending ? "処理中…" : `＋ ${category}をアップロード`}
+        </button>
+      </form>
+
+      {items.length === 0 ? (
+        <p className="text-xs text-slate-400">まだファイルがありません</p>
+      ) : (
+        <ul className="flex flex-col divide-y divide-slate-100">
+          {items.map((a) => (
+            <li key={a.id} className="flex items-start justify-between gap-2 py-2">
+              <div className="min-w-0">
+                {a.url ? (
+                  <a
+                    href={a.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="block truncate text-sm font-semibold text-sky-700 hover:underline"
+                  >
+                    {a.file_name}
+                  </a>
+                ) : (
+                  <span className="block truncate text-sm font-semibold text-slate-400" title="ページを開き直すとダウンロードできます">
+                    {a.file_name}（リンク期限切れ）
+                  </span>
+                )}
+                <p className="mt-0.5 text-xs text-slate-400">
+                  {formatDateTime(a.created_at)}・{a.uploaded_by_name}
+                </p>
+                {a.note && <p className="mt-0.5 text-xs text-slate-500">{a.note}</p>}
+              </div>
+              {(isAdmin || a.uploaded_by === meId) && (
+                <button
+                  type="button"
+                  onClick={() => handleDelete(a.id)}
+                  disabled={isPending}
+                  className="shrink-0 text-xs font-medium text-slate-400 hover:text-rose-600"
+                >
+                  削除
+                </button>
+              )}
+            </li>
+          ))}
+        </ul>
+      )}
     </div>
   );
 }

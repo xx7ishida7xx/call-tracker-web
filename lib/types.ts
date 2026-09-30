@@ -135,6 +135,31 @@ export interface Call {
 }
 
 // ==========================================================================
+// リード添付ファイル（診断レポート／アポ表）
+// 実ファイルは Supabase Storage の lead-attachments バケットに保存し、
+// このテーブルはメタ情報（保存パス・元のファイル名・区分など）だけを持つ。
+// ==========================================================================
+
+export const ATTACHMENT_CATEGORIES = ["診断レポート", "アポ表"] as const;
+export type AttachmentCategory = (typeof ATTACHMENT_CATEGORIES)[number];
+
+// 添付ファイル1件あたりの上限サイズ（バケット側の file_size_limit と合わせている）
+export const MAX_ATTACHMENT_SIZE = 25 * 1024 * 1024; // 25MB
+
+export interface LeadAttachment {
+  id: string;
+  lead_id: string;
+  category: string;
+  file_path: string;
+  file_name: string;
+  file_size: number;
+  mime_type: string;
+  note: string;
+  uploaded_by: string | null;
+  created_at: string;
+}
+
+// ==========================================================================
 // コール結果taxonomy（Round 2）
 // つながらなかった／つながった／その他／訪問結果 の4グループに結果を分類し、
 // 結果を選ぶと「有効架電」「アポ獲得」「ステータス」が自動で連動する。
