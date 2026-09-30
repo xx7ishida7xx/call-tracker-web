@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentProfile } from "@/lib/auth";
 import { canManageMembers, nameFor, type Lead, type LeadAttachment, type Profile, type Call } from "@/lib/types";
+import { getAdjacentLeadIds, searchParamsToQueryString, type LeadSearchParams } from "@/lib/leadsFilter";
 import LeadDetailClient, { type LeadAttachmentView } from "./LeadDetailClient";
 
 // 添付ファイルのダウンロードリンクは、非公開バケットなので毎回署名付きURLを発行する
@@ -10,16 +11,23 @@ const ATTACHMENT_SIGNED_URL_TTL_SECONDS = 60 * 60;
 
 export default async function LeadDetailPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams: Promise<LeadSearchParams>;
 }) {
   const { id } = await params;
+  const sp = await searchParams;
   const supabase = await createClient();
   const me = await getCurrentProfile();
   if (!me) return null;
 
   const { data: lead } = await supabase.from("leads").select("*").eq("id", id).maybeSingle();
   if (!lead) notFound();
+
+  // 一覧画面から引き継いだ絞り込み条件のもとで、前後のリードへ直接移動できるようにする
+  const queryString = searchParamsToQueryString(sp);
+  const adjacent = await getAdjacentLeadIds(supabase, sp, id);
 
   const { data: calls } = await supabase
     .from("calls")
@@ -73,6 +81,9 @@ export default async function LeadDetailPage({
       attachments={attachments}
       meId={me.id}
       isAdmin={canManage}
+      prevId={adjacent?.prevId ?? null}
+      nextId={adjacent?.nextId ?? null}
+      queryString={queryString}
     />
   );
 }
