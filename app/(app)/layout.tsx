@@ -16,6 +16,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   // スタッフ用の画面と管理者用の画面がサイドバー上でひと目で区別できるようにしています。
   const navItems: NavItem[] = [
     { href: "/leads", label: "リード一覧", icon: "list" },
+    { href: "/goals", label: "目標・稼働日", icon: "target" },
     ...(canImport ? [{ href: "/import", label: "CSVインポート", icon: "upload" as const, group: "データ管理" }] : []),
     ...(canManage
       ? [
