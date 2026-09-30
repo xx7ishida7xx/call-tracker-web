@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
-export type IconName = "list" | "chart" | "users" | "upload";
+export type IconName = "list" | "chart" | "users" | "upload" | "target";
 
 export type NavItem = { href: string; label: string; icon: IconName; group?: string };
 
@@ -40,6 +40,14 @@ function Icon({ name, className }: { name: IconName; className?: string }) {
       return (
         <svg {...common}>
           <path d="M4 16v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2M7 9l5-5 5 5M12 4v12" />
+        </svg>
+      );
+    case "target":
+      return (
+        <svg {...common}>
+          <circle cx="12" cy="12" r="9" />
+          <circle cx="12" cy="12" r="5" />
+          <circle cx="12" cy="12" r="1" />
         </svg>
       );
   }
