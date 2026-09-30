@@ -2,7 +2,6 @@
 
 import { useRef, useState, useTransition } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { updateLead, addCall, addLeadAttachment, deleteLeadAttachment } from "@/app/actions";
 import {
   nameFor,
@@ -114,7 +113,6 @@ export default function LeadDetailClient({
   // 一覧画面から引き継いだ絞り込み条件（一覧へ戻る／前へ／次へのリンクに引き継ぐ）
   queryString: string;
 }) {
-  const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -452,7 +450,7 @@ export default function LeadDetailClient({
 
           <div className="mt-4 flex items-center gap-3">
             <button onClick={saveLead} disabled={isPending} className={btnPrimaryCls}>
-              {isPending ? "保存中…" : "保存する"}
+              {isPending ? "保存中…" : "リード情報を保存する"}
             </button>
             {saved && <span className="text-sm font-medium text-emerald-600">保存しました</span>}
           </div>
@@ -571,45 +569,34 @@ export default function LeadDetailClient({
               <button onClick={() => submitCall()} disabled={isPending} className={btnPrimaryCls}>
                 {isPending ? "登録中…" : "登録"}
               </button>
-              <button
-                onClick={() => submitCall(() => nextHref && router.push(nextHref))}
-                disabled={isPending || !nextHref}
-                title={nextHref ? undefined : "次のリードがありません"}
-                className={btnPrimaryCls}
-              >
-                登録して次へ
-              </button>
-              <button
-                onClick={() => submitCall(() => router.push(listHref))}
-                disabled={isPending}
-                className={btnPrimaryCls}
-              >
-                登録して一覧へ戻る
-              </button>
               <button type="button" onClick={resetCallForm} disabled={isPending} className={btnSecondarySmCls}>
                 リセット
               </button>
-              {prevHref ? (
-                <Link href={prevHref} className={btnSecondarySmCls}>
-                  ← 前へ
-                </Link>
-              ) : (
-                <span className={`${btnSecondarySmCls} pointer-events-none opacity-40`}>← 前へ</span>
-              )}
-              {nextHref ? (
-                <Link href={nextHref} className={btnSecondarySmCls}>
-                  次へ →
-                </Link>
-              ) : (
-                <span className={`${btnSecondarySmCls} pointer-events-none opacity-40`}>次へ →</span>
-              )}
-              <Link href={listHref} className={btnSecondarySmCls}>
-                一覧へ戻る
-              </Link>
             </div>
           </div>
         </section>
       </div>
+
+      {/* 前へ/次へ/一覧へ戻る：リード間の移動だけをまとめた操作バー（契約状況の上に配置） */}
+      <section className={`${cardCls} flex flex-wrap items-center gap-2 p-4`}>
+        {prevHref ? (
+          <Link href={prevHref} className={btnSecondarySmCls}>
+            ← 前へ
+          </Link>
+        ) : (
+          <span className={`${btnSecondarySmCls} pointer-events-none opacity-40`}>← 前へ</span>
+        )}
+        {nextHref ? (
+          <Link href={nextHref} className={btnSecondarySmCls}>
+            次へ →
+          </Link>
+        ) : (
+          <span className={`${btnSecondarySmCls} pointer-events-none opacity-40`}>次へ →</span>
+        )}
+        <Link href={listHref} className={btnSecondarySmCls}>
+          一覧へ戻る
+        </Link>
+      </section>
 
       {/* 契約状況：HP・MEO・SNS運用など、商材ごとに複数行を登録できます */}
       <section className={`${cardCls} p-5`}>
@@ -712,7 +699,7 @@ export default function LeadDetailClient({
           </table>
         </div>
         <p className="mt-3 text-xs text-slate-400">
-          入力後は上の「保存する」ボタンを押すと、リード情報とあわせて契約状況も保存されます。
+          入力後は上の「リード情報を保存する」ボタンを押すと、リード情報とあわせて契約状況も保存されます。
         </p>
       </section>
 
