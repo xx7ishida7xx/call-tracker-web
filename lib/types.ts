@@ -17,6 +17,12 @@ export const ROLE_ORDER: Role[] = ["admin", "teamlead", "staff", "guest_admin", 
 // team_lead_id の候補として選べる）
 export const GUEST_ROLES: Role[] = ["guest_admin", "guest_member"];
 
+// ゲスト（guest_admin / guest_member）かどうか。稼働日カレンダーで、会社全体の
+// 登録をゲストには反映させない（ゲストは個人の登録と既定値のみで判定する）ために使う。
+export function isGuestRole(role: Role): boolean {
+  return (GUEST_ROLES as Role[]).includes(role);
+}
+
 export interface Profile {
   id: string;
   email: string;
@@ -25,7 +31,7 @@ export interface Profile {
   role: Role;
   is_owner: boolean;
   team_lead_id: string | null;
-  org_name: string | null; // ゲストチームに設定する会社名（販売店が決まったら設定）
+  org_name: string | null; // 所属する会社名（companies テーブルの名前と一致。社内・ゲストとも設定する）
   created_at: string;
   updated_at: string;
 }
