@@ -38,8 +38,9 @@ export default async function AppLayout({ children }: { children: React.ReactNod
             alt="サムライオン"
             className="h-9 w-9 shrink-0 rounded-lg bg-orange-500 object-cover shadow-sm"
           />
-          <span className="min-w-0 truncate text-sm font-bold leading-tight tracking-tight text-white">
-            SamuraiONコールトラッカー
+          <span className="flex min-w-0 flex-col leading-tight text-white">
+            <span className="truncate text-sm font-bold tracking-tight">SamuraiON</span>
+            <span className="truncate text-sm font-bold tracking-tight">コールトラッカー</span>
           </span>
         </div>
 
