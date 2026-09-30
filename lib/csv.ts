@@ -61,6 +61,7 @@ export interface ParsedLeadRow {
   cms: string;
   genre: string;
   subgenre: string;
+  assignee: string; // 担当者名 または 担当するゲスト会社名（未入力なら空文字）
 }
 
 const HEADER_ALIASES: Record<string, keyof ParsedLeadRow> = {
@@ -88,6 +89,12 @@ const HEADER_ALIASES: Record<string, keyof ParsedLeadRow> = {
   業種詳細: "subgenre",
   サブジャンル: "subgenre",
   subgenre: "subgenre",
+  担当者: "assignee",
+  担当: "assignee",
+  担当者会社: "assignee",
+  assignee: "assignee",
+  assignedto: "assignee",
+  assigned_to: "assignee",
 };
 
 function normalizeHeader(h: string): string {
@@ -118,6 +125,7 @@ export function parseLeadsCsv(text: string): { rows: ParsedLeadRow[]; unmatchedH
       cms: "",
       genre: "",
       subgenre: "",
+      assignee: "",
     };
     keyMap.forEach((key, i) => {
       if (key) rec[key] = (cells[i] ?? "").trim();
