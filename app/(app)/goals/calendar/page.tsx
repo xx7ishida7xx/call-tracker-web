@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentProfile } from "@/lib/auth";
-import { canManageMembers, manageableProfiles, nameFor, type Profile } from "@/lib/types";
+import { canManageMembers, isGuestRole, manageableProfiles, nameFor, type Profile } from "@/lib/types";
 import { currentMonthKey, formatMonthLabel, shiftMonthKey } from "@/lib/format";
 import { datesInMonth, holidayMapForMonth, WEEKDAY_LABELS, resolveIsWorking } from "@/lib/workday";
 import { getWorkDayOverrideMap, todayKey } from "@/lib/goalsData";
@@ -100,10 +100,18 @@ export default async function GoalsCalendarPage({
   let personalResolved: Map<string, boolean> | null = null;
   if (selectedMember) {
     const personalOverrides = await getWorkDayOverrideMap(supabase, selectedMember.id, month);
+    // ゲスト(guest_admin / guest_member)には会社全体の登録を反映させない。
+    // 個人の登録があればそちらを優先し、無ければ祝日・曜日から決まる既定値に従う。
+    const memberIsGuest = isGuestRole(selectedMember.role);
     personalResolved = new Map<string, boolean>(
       dates.map((date) => [
         date,
-        resolveIsWorking(date, holidays, companyOverrides.get(date), personalOverrides.get(date)),
+        resolveIsWorking(
+          date,
+          holidays,
+          memberIsGuest ? undefined : companyOverrides.get(date),
+          personalOverrides.get(date)
+        ),
       ])
     );
   }
@@ -129,11 +137,11 @@ export default async function GoalsCalendarPage({
         </div>
       </div>
 
-      {/* 会社全体の休み（創業記念日・年末年始休業など）。土曜日など、平日以外を出勤日にすることもできます。 */}
+      {/* 会社全体の休み(創業記念日・年末年始休業など)。土曜日など、平日以外を出勤日にすることもできます。 */}
       <section className={`${cardCls} p-5`}>
         <h2 className={sectionTitleCls}>会社全体の休み・出勤日</h2>
         <p className="mt-1 text-xs text-slate-500">
-          何も登録しない日は、土日・祝日は休み、それ以外は稼働日として扱われます。チェックを外すと休みに、入れると出勤日になります（土曜日の出勤日設定もここから行えます）。
+          何も登録しない日は、土日・祝日は休み、それ以外は稼働日として扱われます。チェックを外すと休みに、入れると出勤日になります(土曜日の出勤日設定もここから行えます)。
           {!canManageCompany && "編集できるのは管理者・オーナーのみです。"}
         </p>
         {canManageCompany ? (
@@ -159,10 +167,10 @@ export default async function GoalsCalendarPage({
         )}
       </section>
 
-      {/* 個人の休み（有給など）。管理できるのは、それぞれの直属の管理者・オーナーです。 */}
+      {/* 個人の休み(有給など)。管理できるのは、それぞれの直属の管理者・オーナーです。 */}
       {manageable.length > 0 && (
         <section className={`${cardCls} p-5`}>
-          <h2 className={sectionTitleCls}>個人の休み（有給など）</h2>
+          <h2 className={sectionTitleCls}>個人の休み(有給など)</h2>
           <p className="mt-1 text-xs text-slate-500">
             会社全体の設定より、こちらの個人設定が優先されます。対象メンバーを選んでチェックを変更してください。
           </p>
@@ -184,6 +192,11 @@ export default async function GoalsCalendarPage({
           {selectedMember && personalResolved && (
             <form action={saveWorkDayOverrides.bind(null, selectedMember.id, month)} className="mt-4 flex flex-col gap-3">
               <p className="text-sm font-semibold text-slate-700">{nameFor(selectedMember)} さんの{formatMonthLabel(month)}</p>
+              {isGuestRole(selectedMember.role) && (
+                <p className="-mt-2 text-xs text-slate-400">
+                  ゲストのため、会社全体の休日設定は反映されません。個人で登録した日だけが優先され、それ以外は通常の曜日・祝日どおりの判定になります。
+                </p>
+              )}
               <DayGrid month={month} dates={dates} resolved={personalResolved} holidays={holidays} today={today} editable />
               <div>
                 <button type="submit" className={btnPrimaryCls}>
