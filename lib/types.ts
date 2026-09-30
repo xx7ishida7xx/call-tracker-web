@@ -279,3 +279,29 @@ export function canEditProfile(me: Profile | null, target: Profile): boolean {
   if (me.role === "admin" && !target.is_owner && target.role !== "admin") return true;
   return false;
 }
+
+// ==========================================================================
+// 目標管理・稼働日カレンダー：権限判定
+// 本人が自分の目標・個人カレンダーを入力する運用は今回は含めないため、
+// 「本人」は対象に含めない（管理者・オーナー・直属の上司のみが登録・変更できる）。
+// データベース側（Supabase RLS）の can_manage_profile_goals と同じロジック。
+// ==========================================================================
+export function canManageProfileGoals(me: Profile | null, target: Profile): boolean {
+  if (!me) return false;
+  if (me.is_owner || me.role === "admin") return true;
+  if ((me.role === "teamlead" || me.role === "guest_admin") && target.team_lead_id === me.id) return true;
+  return false;
+}
+
+// 閲覧は「本人」も含む（管理できるかどうかに関わらず、自分の分は見られる）
+export function canViewProfileGoals(me: Profile | null, target: Profile): boolean {
+  if (!me) return false;
+  if (me.id === target.id) return true;
+  return canManageProfileGoals(me, target);
+}
+
+// 自分が目標・カレンダーを管理できる相手（配下メンバー）を一覧から絞り込む
+export function manageableProfiles(me: Profile | null, roster: Profile[]): Profile[] {
+  if (!me) return [];
+  return roster.filter((p) => canManageProfileGoals(me, p));
+}
