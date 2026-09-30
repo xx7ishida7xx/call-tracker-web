@@ -16,6 +16,7 @@ import {
   type Profile,
 } from "@/lib/types";
 import { formatDate, formatDateTime } from "@/lib/format";
+import { applyLeadFilters, getCallFilteredLeadIds, type LeadSearchParams } from "@/lib/leadsFilter";
 import AssigneeCell from "./AssigneeCell";
 import {
   btnAccentCls,
@@ -43,32 +44,7 @@ type LeadRow = {
   assigned: { id: string; name: string; display_name: string | null; email: string } | null;
 };
 
-type SearchParams = {
-  // 顧客名・電話番号・代表者・信販会社（部分一致／前方一致）
-  company?: string;
-  phone_prefix?: string;
-  rep?: string;
-  credit_company?: string;
-  // ステータス・担当
-  status?: string;
-  assignee?: string;
-  // 地域・業種・参照元（複数選択）
-  genre?: string | string[];
-  pref?: string | string[];
-  cms?: string | string[];
-  // コール履歴
-  caller?: string;
-  call_result?: string;
-  call_rank?: string;
-  call_hot?: string;
-  // 次回アタック日
-  recall_from?: string;
-  recall_to?: string;
-  // ホームページ関連
-  has_url?: string;
-  has_meo?: string;
-  has_sns?: string;
-  acquisition_desire?: string;
+type SearchParams = LeadSearchParams & {
   // ページング・検索実行フラグ（このフラグが無い間はリード一覧を表示しない）
   page?: string;
   searched?: string;
@@ -81,10 +57,11 @@ export default async function LeadsPage({ searchParams }: { searchParams: Promis
   if (!me) return null;
   const canManage = canManageMembers(me);
 
-  // 業種・都道府県・参照元は複数選択できるようにしているため、常に配列として扱う
+  // 業種・都道府県・参照元・ランクは複数選択できるようにしているため、常に配列として扱う
   const genreList = Array.isArray(sp.genre) ? sp.genre : sp.genre ? [sp.genre] : [];
   const prefList = Array.isArray(sp.pref) ? sp.pref : sp.pref ? [sp.pref] : [];
   const cmsList = Array.isArray(sp.cms) ? sp.cms : sp.cms ? [sp.cms] : [];
+  const callRankList = Array.isArray(sp.call_rank) ? sp.call_rank : sp.call_rank ? [sp.call_rank] : [];
 
   // 「アポ禁」はオーナー・管理者以外には見せない（データ自体もRLSで見えなくなるが、
   // 絞り込み欄や件数表示にも選択肢として出さないようにする）
@@ -109,17 +86,8 @@ export default async function LeadsPage({ searchParams }: { searchParams: Promis
 
   if (hasSearched) {
     // コール履歴（コール者・結果・ランク・激アツ!!）は calls テーブル側の条件なので、
-    // 先に該当するリードIDを集めてから leads を絞り込む
-    let callLeadIds: string[] | null = null;
-    if (sp.caller || sp.call_result || sp.call_rank || sp.call_hot === "1") {
-      let callsQuery = supabase.from("calls").select("lead_id");
-      if (sp.caller) callsQuery = callsQuery.eq("caller_id", sp.caller);
-      if (sp.call_result) callsQuery = callsQuery.eq("result", sp.call_result);
-      if (sp.call_rank) callsQuery = callsQuery.eq("rank", sp.call_rank);
-      if (sp.call_hot === "1") callsQuery = callsQuery.eq("hot", true);
-      const { data: callRows } = await callsQuery;
-      callLeadIds = Array.from(new Set((callRows ?? []).map((r) => r.lead_id as string)));
-    }
+    // 先に該当するリードIDを集めてから leads を絞り込む（一覧・詳細の前後/次へで共通のロジック）
+    const callLeadIds = await getCallFilteredLeadIds(supabase, sp, callRankList);
 
     let query = supabase
       .from("leads")
@@ -129,42 +97,7 @@ export default async function LeadsPage({ searchParams }: { searchParams: Promis
       )
       .order("created_at", { ascending: false })
       .range(from, to);
-
-    if (sp.company && sp.company.trim()) {
-      const c = sp.company.trim().replace(/[%,]/g, "");
-      query = query.ilike("company", `%${c}%`);
-    }
-    if (sp.phone_prefix && sp.phone_prefix.trim()) {
-      const p = sp.phone_prefix.trim().replace(/[%,]/g, "");
-      query = query.ilike("phone", `${p}%`);
-    }
-    if (sp.rep && sp.rep.trim()) {
-      const r = sp.rep.trim().replace(/[%,]/g, "");
-      query = query.ilike("rep_name", `%${r}%`);
-    }
-    if (sp.credit_company && sp.credit_company.trim()) {
-      const cc = sp.credit_company.trim().replace(/[%,]/g, "");
-      query = query.ilike("credit_company", `%${cc}%`);
-    }
-    if (sp.status) query = query.eq("status", sp.status);
-    if (sp.assignee) query = query.eq("assigned_to", sp.assignee);
-    if (genreList.length > 0) query = query.in("genre", genreList);
-    if (prefList.length > 0) query = query.in("pref", prefList);
-    if (cmsList.length > 0) query = query.in("cms", cmsList);
-    if (sp.recall_from) query = query.gte("recall_at", new Date(`${sp.recall_from}T00:00:00`).toISOString());
-    if (sp.recall_to) query = query.lte("recall_at", new Date(`${sp.recall_to}T23:59:59`).toISOString());
-    // ホームページ／MEO／SNS運用の有無は、契約状況の該当する商材の行で「有」チェックが
-    // 入っているかどうかで判定する（商材名が入っているだけでは「有」にならない）
-    if (sp.has_url === "yes") query = query.contains("contracts", [{ product: "HP", active: true }]);
-    if (sp.has_url === "no") query = query.not("contracts", "cs", JSON.stringify([{ product: "HP", active: true }]));
-    if (sp.has_meo === "yes") query = query.contains("contracts", [{ product: "MEO", active: true }]);
-    if (sp.has_meo === "no") query = query.not("contracts", "cs", JSON.stringify([{ product: "MEO", active: true }]));
-    if (sp.has_sns === "yes") query = query.contains("contracts", [{ product: "SNS運用", active: true }]);
-    if (sp.has_sns === "no") query = query.not("contracts", "cs", JSON.stringify([{ product: "SNS運用", active: true }]));
-    if (sp.acquisition_desire) query = query.eq("acquisition_desire", sp.acquisition_desire);
-    if (callLeadIds !== null) {
-      query = query.in("id", callLeadIds.length > 0 ? callLeadIds : ["00000000-0000-0000-0000-000000000000"]);
-    }
+    query = applyLeadFilters(query, sp, genreList, prefList, cmsList, callLeadIds);
 
     const { data, count, error } = await query;
     leads = (data as unknown as LeadRow[]) ?? [];
@@ -200,7 +133,7 @@ export default async function LeadsPage({ searchParams }: { searchParams: Promis
     cmsList.forEach((c) => params.append("cms", c));
     if (sp.caller) params.set("caller", sp.caller);
     if (sp.call_result) params.set("call_result", sp.call_result);
-    if (sp.call_rank) params.set("call_rank", sp.call_rank);
+    callRankList.forEach((r) => params.append("call_rank", r));
     if (sp.call_hot === "1") params.set("call_hot", "1");
     if (sp.recall_from) params.set("recall_from", sp.recall_from);
     if (sp.recall_to) params.set("recall_to", sp.recall_to);
@@ -212,6 +145,10 @@ export default async function LeadsPage({ searchParams }: { searchParams: Promis
     const s = params.toString();
     return s ? `/leads?${s}` : "/leads";
   }
+
+  // 一覧の行からリード詳細へ渡す、現在の絞り込み条件（詳細画面の「前へ／次へ／一覧へ戻る」で使う）
+  const filterQS = hrefFor(page).split("?")[1] ?? "";
+  const leadHref = (leadId: string) => (filterQS ? `/leads/${leadId}?${filterQS}` : `/leads/${leadId}`);
 
   return (
     <div className="flex flex-col gap-4">
@@ -278,17 +215,7 @@ export default async function LeadsPage({ searchParams }: { searchParams: Promis
                 ))}
               </select>
             </label>
-            <label className="flex flex-col gap-1 text-xs font-semibold text-slate-500">
-              ランク
-              <select name="call_rank" defaultValue={sp.call_rank || ""} className={`w-24 ${inputCls}`}>
-                <option value="">未選択</option>
-                {CALL_RANKS.map((r) => (
-                  <option key={r} value={r}>
-                    {r}
-                  </option>
-                ))}
-              </select>
-            </label>
+            <MultiSelectFilter label="ランク" name="call_rank" options={CALL_RANKS} selected={callRankList} />
             <label className="flex items-center gap-2 pb-2 text-sm font-semibold text-rose-600">
               <input
                 type="checkbox"
@@ -442,7 +369,7 @@ export default async function LeadsPage({ searchParams }: { searchParams: Promis
                 {leads.map((lead) => (
                   <tr key={lead.id} className="border-b border-slate-100 last:border-0 hover:bg-orange-50/40">
                     <td className="px-4 py-2.5">
-                      <Link href={`/leads/${lead.id}`} className="font-medium text-slate-900 hover:text-orange-600 hover:underline">
+                      <Link href={leadHref(lead.id)} className="font-medium text-slate-900 hover:text-orange-600 hover:underline">
                         {lead.company || "（会社名未登録）"}
                       </Link>
                     </td>
@@ -533,7 +460,9 @@ export default async function LeadsPage({ searchParams }: { searchParams: Promis
                 ))}
                 {sp.caller && <input type="hidden" name="caller" value={sp.caller} />}
                 {sp.call_result && <input type="hidden" name="call_result" value={sp.call_result} />}
-                {sp.call_rank && <input type="hidden" name="call_rank" value={sp.call_rank} />}
+                {callRankList.map((r) => (
+                  <input key={`h-call_rank-${r}`} type="hidden" name="call_rank" value={r} />
+                ))}
                 {sp.call_hot === "1" && <input type="hidden" name="call_hot" value="1" />}
                 {sp.recall_from && <input type="hidden" name="recall_from" value={sp.recall_from} />}
                 {sp.recall_to && <input type="hidden" name="recall_to" value={sp.recall_to} />}
