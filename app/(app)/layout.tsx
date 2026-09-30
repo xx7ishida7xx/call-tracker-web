@@ -4,6 +4,7 @@ import { canManageMembers, nameFor, ROLE_LABEL } from "@/lib/types";
 import { signOut } from "@/app/actions";
 import Sidebar, { TopBarNav, type NavItem } from "./NavBar";
 import RecallReminder from "./RecallReminder";
+import SelfPasswordReset from "./SelfPasswordReset";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const me = await getCurrentProfile();
@@ -30,7 +31,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
 
   return (
     <div className="min-h-screen bg-orange-50 sm:flex">
-      {/* デスクトップ：左側の縦型ナビゲーション（濃色） */}
+      {/* デスクトップ:左側の縦型ナビゲーション(濃色) */}
       <aside className="hidden sm:sticky sm:top-0 sm:flex sm:h-screen sm:w-60 sm:shrink-0 sm:flex-col sm:bg-slate-900">
         <div className="flex min-w-0 items-center gap-2 px-5 py-5">
           {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -57,6 +58,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
               <span className="text-slate-400">{roleLabel}</span>
             </div>
           </div>
+          <SelfPasswordReset email={me.email} />
           <form action={signOut}>
             <button
               type="submit"
@@ -68,7 +70,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         </div>
       </aside>
 
-      {/* モバイル：上部バー（濃色） */}
+      {/* モバイル:上部バー(濃色) */}
       <header className="sticky top-0 z-10 flex flex-col bg-slate-900 sm:hidden">
         <div className="flex items-center gap-2 px-4 py-3">
           {/* eslint-disable-next-line @next/next/no-img-element */}
