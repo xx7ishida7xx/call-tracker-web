@@ -7,7 +7,8 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getCurrentProfile } from "@/lib/auth";
 import { parseLeadsCsv } from "@/lib/csv";
-import { canManageMembers, ATTACHMENT_CATEGORIES, MAX_ATTACHMENT_SIZE, type AttachmentCategory, type Lead, type Role } from "@/lib/types";
+import { canManageMembers, canManageProfileGoals, ATTACHMENT_CATEGORIES, MAX_ATTACHMENT_SIZE, type AttachmentCategory, type Lead, type Profile, type Role } from "@/lib/types";
+import { holidayMapForMonth, defaultIsWorking, datesInMonth } from "@/lib/workday";
 
 // ---------------------------------------------------------------------------
 // 認証
@@ -411,4 +412,124 @@ export async function importLeadsCsv(csvText: string, assignTo: string | null) {
     skippedDuplicate: rows.length - toInsert.length,
     unmatchedHeaders,
   };
+}
+
+// ---------------------------------------------------------------------------
+// 目標管理・稼働日カレンダー
+//   実際の権限チェックはデータベース側（RLS）でも行われるが、ここでも先に
+//   チェックして分かりやすいエラーメッセージを返す。
+// ---------------------------------------------------------------------------
+
+async function requireManageGoalsFor(profileId: string): Promise<Profile> {
+  const supabase = await createClient();
+  const me = await getCurrentProfile();
+  if (!me) throw new Error("ログインが必要です。");
+  const { data: target } = await supabase.from("profiles").select("*").eq("id", profileId).maybeSingle();
+  if (!target) throw new Error("対象のメンバーが見つかりません。");
+  if (!canManageProfileGoals(me, target as Profile)) {
+    throw new Error("このメンバーの目標・カレンダーを変更する権限がありません。");
+  }
+  return target as Profile;
+}
+
+// 月間目標（アポ件数・契約件数）を保存する。
+// ページ側で `saveMonthlyGoal.bind(null, profileId, month)` の形にしてフォームの action に
+// そのまま渡す想定（フォーム項目名: appointment_target / contract_target）。
+export async function saveMonthlyGoal(profileId: string, month: string, formData: FormData) {
+  await requireManageGoalsFor(profileId);
+  const appointmentTarget = Math.max(0, parseInt(String(formData.get("appointment_target") || "0"), 10) || 0);
+  const contractTarget = Math.max(0, parseInt(String(formData.get("contract_target") || "0"), 10) || 0);
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("monthly_goals")
+    .upsert(
+      {
+        profile_id: profileId,
+        month,
+        appointment_target: appointmentTarget,
+        contract_target: contractTarget,
+      },
+      { onConflict: "profile_id,month" }
+    );
+  if (error) throw new Error(error.message);
+  revalidatePath("/goals");
+}
+
+// 日次のコール件数目標を、月分まとめて保存する。
+// フォーム項目名: call_target_2026-09-01 のように、日付ごとに1つずつ。
+export async function saveDailyCallGoals(profileId: string, month: string, formData: FormData) {
+  await requireManageGoalsFor(profileId);
+  const rows = datesInMonth(month)
+    .map((date) => {
+      const raw = formData.get(`call_target_${date}`);
+      if (raw === null) return null;
+      const callTarget = Math.max(0, parseInt(String(raw || "0"), 10) || 0);
+      return { profile_id: profileId, date, call_target: callTarget };
+    })
+    .filter((r): r is { profile_id: string; date: string; call_target: number } => r !== null);
+  if (rows.length === 0) return;
+  const supabase = await createClient();
+  const { error } = await supabase.from("daily_call_goals").upsert(rows, { onConflict: "profile_id,date" });
+  if (error) throw new Error(error.message);
+  revalidatePath("/goals");
+}
+
+// 稼働日カレンダー（会社全体 or 個人）を、月分まとめて保存する。
+// 「平日=稼働・土日=休み・祝日=休み」という既定と同じ内容になる日は、登録行を削除して
+// カレンダーを既定に戻す（登録は既定と異なる日だけを持つ）。
+// フォーム項目名: working_2026-09-01 のチェックボックス（チェック=稼働日）。
+export async function saveWorkDayOverrides(profileId: string | null, month: string, formData: FormData) {
+  const me = await getCurrentProfile();
+  if (!me) throw new Error("ログインが必要です。");
+  if (profileId === null) {
+    if (!canManageMembers(me)) throw new Error("会社全体の稼働日カレンダーを変更する権限がありません。");
+  } else {
+    await requireManageGoalsFor(profileId);
+  }
+
+  const days = datesInMonth(month).map((date) => ({ date, isWorking: formData.get(`working_${date}`) === "on" }));
+
+  const supabase = await createClient();
+  const holidays = holidayMapForMonth(month);
+  const toDeleteDates: string[] = [];
+  const toUpsert: { profile_id: string | null; date: string; is_working: boolean; created_by: string }[] = [];
+
+  for (const day of days) {
+    const isDefault = defaultIsWorking(day.date, holidays) === day.isWorking;
+    if (isDefault) {
+      toDeleteDates.push(day.date);
+    } else {
+      toUpsert.push({ profile_id: profileId, date: day.date, is_working: day.isWorking, created_by: me.id });
+    }
+  }
+
+  if (toDeleteDates.length > 0) {
+    let del = supabase.from("work_day_overrides").delete().in("date", toDeleteDates);
+    del = profileId === null ? del.is("profile_id", null) : del.eq("profile_id", profileId);
+    const { error } = await del;
+    if (error) throw new Error(error.message);
+  }
+
+  if (toUpsert.length > 0) {
+    // 会社全体(profile_idがNULL)と個人とでユニーク制約が別（部分インデックス）のため、
+    // upsertの競合対象を指定できない。既存行を1件ずつ確認しながら insert / update する。
+    for (const row of toUpsert) {
+      let existingQuery = supabase.from("work_day_overrides").select("id").eq("date", row.date);
+      existingQuery = row.profile_id === null ? existingQuery.is("profile_id", null) : existingQuery.eq("profile_id", row.profile_id);
+      const { data: existing } = await existingQuery.maybeSingle();
+      if (existing) {
+        const { error } = await supabase
+          .from("work_day_overrides")
+          .update({ is_working: row.is_working })
+          .eq("id", existing.id);
+        if (error) throw new Error(error.message);
+      } else {
+        const { error } = await supabase.from("work_day_overrides").insert(row);
+        if (error) throw new Error(error.message);
+      }
+    }
+  }
+
+  revalidatePath("/goals");
+  revalidatePath("/goals/calendar");
 }
