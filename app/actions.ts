@@ -346,7 +346,7 @@ export async function inviteMember(email: string, role: Role, companyName: strin
 //   ミライアゴーゴー自身・各ゲスト会社をこの一覧で登録・管理する。
 //   招待画面・メンバー編集画面の「所属会社」は、この一覧から選ぶ。
 // ---------------------------------------------------------------------------
-export async function createCompany(name: string, displayName?: string | null) {
+export async function createCompany(name: string, displayName?: string | null, canViewAllLeads?: boolean) {
   const me = await getCurrentProfile();
   if (!me || !canManageMembers(me)) {
     throw new Error("会社を登録する権限がありません。");
@@ -358,8 +358,8 @@ export async function createCompany(name: string, displayName?: string | null) {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("companies")
-    .insert({ name: cleanName, display_name: cleanDisplayName })
-    .select("id, name, display_name")
+    .insert({ name: cleanName, display_name: cleanDisplayName, can_view_all_leads: canViewAllLeads ?? false })
+    .select("id, name, display_name, can_view_all_leads")
     .single();
   if (error) {
     if (/duplicate|unique/i.test(error.message)) {
@@ -368,10 +368,20 @@ export async function createCompany(name: string, displayName?: string | null) {
     throw new Error(error.message);
   }
   revalidatePath("/members");
-  return { id: data.id as string, name: data.name as string, display_name: data.display_name as string | null };
+  return {
+    id: data.id as string,
+    name: data.name as string,
+    display_name: data.display_name as string | null,
+    can_view_all_leads: data.can_view_all_leads as boolean,
+  };
 }
 
-export async function renameCompany(id: string, name: string, displayName?: string | null) {
+export async function renameCompany(
+  id: string,
+  name: string,
+  displayName?: string | null,
+  canViewAllLeads?: boolean
+) {
   const me = await getCurrentProfile();
   if (!me || !canManageMembers(me)) {
     throw new Error("会社名を変更する権限がありません。");
@@ -386,7 +396,7 @@ export async function renameCompany(id: string, name: string, displayName?: stri
 
   const { error } = await supabase
     .from("companies")
-    .update({ name: cleanName, display_name: cleanDisplayName })
+    .update({ name: cleanName, display_name: cleanDisplayName, can_view_all_leads: canViewAllLeads ?? false })
     .eq("id", id);
   if (error) {
     if (/duplicate|unique/i.test(error.message)) {
@@ -513,10 +523,69 @@ export async function deleteMember(memberId: string) {
 }
 
 // ---------------------------------------------------------------------------
-// CSV インポート
+// CSV インポート・更新インポート・エクスポート共通のヘルパー
 // ---------------------------------------------------------------------------
 function normalizeAssigneeText(s: string): string {
   return s.trim().toLowerCase().replace(/　/g, " ");
+}
+
+type AssigneeLookup = {
+  byPersonKey: Map<string, string>; // 正規化した名前・表示名・メール -> profile id
+  guestAdminByCompanyKey: Map<string, string>; // 正規化した会社名（正式名称・表示名称どちらも） -> ゲスト管理者の profile id
+};
+
+// CSVの「担当者」欄（個人名 または ゲスト会社名）を突き合わせるための一覧を作る。
+// 個人名に一致すればその人へ、会社名に一致すればその会社のゲスト管理者へ割り当てる。
+async function buildAssigneeLookup(supabase: Awaited<ReturnType<typeof createClient>>): Promise<AssigneeLookup> {
+  const byPersonKey = new Map<string, string>();
+  const guestAdminByCompanyKey = new Map<string, string>();
+
+  const { data: rosterData } = await supabase
+    .from("profiles")
+    .select("id, name, display_name, email, role, org_name");
+  const roster =
+    (rosterData as { id: string; name: string | null; display_name: string | null; email: string; role: Role; org_name: string | null }[]) ??
+    [];
+  // 会社ごとの表示名称（略称）も、正式名称（profiles.org_name に入っている文字列）と
+  // あわせて照合できるように、会社マスタを正式名称 -> 表示名称のマップにしておく
+  const { data: companiesData } = await supabase.from("companies").select("name, display_name");
+  const displayNameByCompanyName = new Map<string, string>();
+  for (const c of (companiesData as { name: string; display_name: string | null }[]) ?? []) {
+    if (c.display_name && c.display_name.trim()) displayNameByCompanyName.set(c.name, c.display_name);
+  }
+  for (const p of roster) {
+    for (const candidate of [p.display_name, p.name, p.email]) {
+      if (candidate && candidate.trim()) byPersonKey.set(normalizeAssigneeText(candidate), p.id);
+    }
+    if (p.role === "guest_admin" && p.org_name && p.org_name.trim()) {
+      const key = normalizeAssigneeText(p.org_name);
+      if (!guestAdminByCompanyKey.has(key)) guestAdminByCompanyKey.set(key, p.id);
+      const displayName = displayNameByCompanyName.get(p.org_name);
+      if (displayName) {
+        const displayKey = normalizeAssigneeText(displayName);
+        if (!guestAdminByCompanyKey.has(displayKey)) guestAdminByCompanyKey.set(displayKey, p.id);
+      }
+    }
+  }
+  return { byPersonKey, guestAdminByCompanyKey };
+}
+
+// 「担当者」欄の1つの値を、個人 → 会社（ゲスト管理者） の順で突き合わせる。
+// 一致しなければ null（＝一致なし）を返すだけで、一致しなかった場合に何を
+// 割り当てるか（未割当のままにする／今までの担当者のままにする、など）は
+// 呼び出し側（インポート／更新インポート）がそれぞれ判断する。
+function resolveAssigneeMatch(
+  raw: string,
+  lookup: AssigneeLookup
+): { id: string; via: "person" | "company" } | null {
+  const value = raw.trim();
+  if (!value) return null;
+  const key = normalizeAssigneeText(value);
+  const personId = lookup.byPersonKey.get(key);
+  if (personId) return { id: personId, via: "person" };
+  const companyAdminId = lookup.guestAdminByCompanyKey.get(key);
+  if (companyAdminId) return { id: companyAdminId, via: "company" };
+  return null;
 }
 
 export async function importLeadsCsv(csvText: string, assignTo: string | null) {
@@ -524,12 +593,16 @@ export async function importLeadsCsv(csvText: string, assignTo: string | null) {
   const me = await getCurrentProfile();
   if (!me) throw new Error("ログインが必要です。");
 
-  const { rows, unmatchedHeaders } = parseLeadsCsv(csvText);
+  const { rows: parsedRows, unmatchedHeaders } = parseLeadsCsv(csvText);
+  // 電話番号が空の行は、架電対象として使えないためそもそも取り込み対象にしない
+  const skippedNoPhone = parsedRows.filter((r) => !r.phone.trim()).length;
+  const rows = parsedRows.filter((r) => r.phone.trim());
   if (rows.length === 0) {
     return {
-      total: 0,
+      total: parsedRows.length,
       imported: 0,
       skippedDuplicate: 0,
+      skippedNoPhone,
       unmatchedHeaders,
       assignedByPerson: 0,
       assignedByCompany: 0,
@@ -541,43 +614,11 @@ export async function importLeadsCsv(csvText: string, assignTo: string | null) {
   const effectiveAssignTo =
     me.role === "admin" || me.role === "teamlead" ? assignTo : me.id;
 
-  // CSVの「担当者」欄（個人名 または ゲスト会社名）から、行ごとに割り当て先を決める準備。
-  // 個人名に一致すればその人へ、会社名に一致すればその会社のゲスト管理者へ割り当てる。
   const needsAssigneeLookup =
     (me.role === "admin" || me.role === "teamlead") && rows.some((r) => r.assignee.trim() !== "");
-
-  const byPersonKey = new Map<string, string>(); // 正規化した名前・表示名・メール -> profile id
-  const guestAdminByCompanyKey = new Map<string, string>(); // 正規化した会社名（正式名称・表示名称どちらも） -> ゲスト管理者の profile id
-
-  if (needsAssigneeLookup) {
-    const { data: rosterData } = await supabase
-      .from("profiles")
-      .select("id, name, display_name, email, role, org_name");
-    const roster =
-      (rosterData as { id: string; name: string | null; display_name: string | null; email: string; role: Role; org_name: string | null }[]) ??
-      [];
-    // 会社ごとの表示名称（略称）も、正式名称（profiles.org_name に入っている文字列）と
-    // あわせて照合できるように、会社マスタを正式名称 -> 表示名称のマップにしておく
-    const { data: companiesData } = await supabase.from("companies").select("name, display_name");
-    const displayNameByCompanyName = new Map<string, string>();
-    for (const c of (companiesData as { name: string; display_name: string | null }[]) ?? []) {
-      if (c.display_name && c.display_name.trim()) displayNameByCompanyName.set(c.name, c.display_name);
-    }
-    for (const p of roster) {
-      for (const candidate of [p.display_name, p.name, p.email]) {
-        if (candidate && candidate.trim()) byPersonKey.set(normalizeAssigneeText(candidate), p.id);
-      }
-      if (p.role === "guest_admin" && p.org_name && p.org_name.trim()) {
-        const key = normalizeAssigneeText(p.org_name);
-        if (!guestAdminByCompanyKey.has(key)) guestAdminByCompanyKey.set(key, p.id);
-        const displayName = displayNameByCompanyName.get(p.org_name);
-        if (displayName) {
-          const displayKey = normalizeAssigneeText(displayName);
-          if (!guestAdminByCompanyKey.has(displayKey)) guestAdminByCompanyKey.set(displayKey, p.id);
-        }
-      }
-    }
-  }
+  const lookup: AssigneeLookup = needsAssigneeLookup
+    ? await buildAssigneeLookup(supabase)
+    : { byPersonKey: new Map(), guestAdminByCompanyKey: new Map() };
 
   let assignedByPerson = 0;
   let assignedByCompany = 0;
@@ -586,22 +627,17 @@ export async function importLeadsCsv(csvText: string, assignTo: string | null) {
   function resolveAssignee(raw: string): string | null {
     const value = raw.trim();
     if (!value) return effectiveAssignTo;
-    const key = normalizeAssigneeText(value);
-    const personId = byPersonKey.get(key);
-    if (personId) {
-      assignedByPerson += 1;
-      return personId;
-    }
-    const companyAdminId = guestAdminByCompanyKey.get(key);
-    if (companyAdminId) {
-      assignedByCompany += 1;
-      return companyAdminId;
+    const match = resolveAssigneeMatch(value, lookup);
+    if (match) {
+      if (match.via === "person") assignedByPerson += 1;
+      else assignedByCompany += 1;
+      return match.id;
     }
     unmatchedAssigneesSet.add(value);
     return effectiveAssignTo;
   }
 
-  // 電話番号での重複チェック（電話番号ありの行のみ対象）
+  // 電話番号での重複チェック（既存に同じ電話番号があれば取り込まない）
   const phones = Array.from(new Set(rows.map((r) => r.phone).filter(Boolean)));
   let existingPhones = new Set<string>();
   if (phones.length > 0) {
@@ -613,7 +649,7 @@ export async function importLeadsCsv(csvText: string, assignTo: string | null) {
   }
 
   const toInsert = rows
-    .filter((r) => !(r.phone && existingPhones.has(r.phone)))
+    .filter((r) => !existingPhones.has(r.phone))
     .map((r) => ({
       company: r.company,
       pref: r.pref,
@@ -640,9 +676,141 @@ export async function importLeadsCsv(csvText: string, assignTo: string | null) {
   revalidatePath("/leads");
 
   return {
-    total: rows.length,
+    total: parsedRows.length,
     imported,
     skippedDuplicate: rows.length - toInsert.length,
+    skippedNoPhone,
+    unmatchedHeaders,
+    assignedByPerson,
+    assignedByCompany,
+    unmatchedAssignees: Array.from(unmatchedAssigneesSet),
+  };
+}
+
+// エクスポートしたCSVに手を加えて読み込み直す「更新インポート」。
+// 新しいリードを追加するためのものではなく、既存のリードの中身
+// （会社名・住所などの誤り修正、担当者の割り振りなど）を直すためのもの。
+//   ・電話番号が一致した既存のリードだけを対象にする（一致しない行は何もしない＝新規追加はしない）
+//   ・CSVの空欄セルは「変更しない」として扱う（埋まっている列だけ上書きする）
+//   ・同じ電話番号の既存リードが複数ある場合は、誤って別の行を更新しないよう対象外にする
+export async function updateLeadsCsv(csvText: string) {
+  const supabase = await createClient();
+  const me = await getCurrentProfile();
+  if (!me) throw new Error("ログインが必要です。");
+  if (me.role !== "admin" && me.role !== "teamlead") {
+    throw new Error("既存リストの更新は、管理者・チームリーダーのみ行えます。");
+  }
+
+  const { rows: parsedRows, unmatchedHeaders } = parseLeadsCsv(csvText);
+  // 電話番号が空の行は、どのリードを更新すべきか特定できないため対象外にする
+  const skippedNoPhone = parsedRows.filter((r) => !r.phone.trim()).length;
+  const rows = parsedRows.filter((r) => r.phone.trim());
+  if (rows.length === 0) {
+    return {
+      total: parsedRows.length,
+      updated: 0,
+      unchanged: 0,
+      notFound: 0,
+      ambiguous: 0,
+      noPermission: 0,
+      skippedNoPhone,
+      unmatchedHeaders,
+      assignedByPerson: 0,
+      assignedByCompany: 0,
+      unmatchedAssignees: [] as string[],
+    };
+  }
+
+  const lookup = rows.some((r) => r.assignee.trim() !== "")
+    ? await buildAssigneeLookup(supabase)
+    : { byPersonKey: new Map<string, string>(), guestAdminByCompanyKey: new Map<string, string>() };
+
+  let assignedByPerson = 0;
+  let assignedByCompany = 0;
+  const unmatchedAssigneesSet = new Set<string>();
+
+  // 電話番号ごとに、対象となる既存リードのidを先にまとめて調べておく
+  // （同じ電話番号の行が複数あれば「ambiguous」として更新対象から外す）
+  const phones = Array.from(new Set(rows.map((r) => r.phone)));
+  const idsByPhone = new Map<string, string[]>();
+  const LOOKUP_CHUNK = 500;
+  for (let i = 0; i < phones.length; i += LOOKUP_CHUNK) {
+    const chunk = phones.slice(i, i + LOOKUP_CHUNK);
+    const { data } = await supabase.from("leads").select("id, phone").in("phone", chunk);
+    for (const row of (data as { id: string; phone: string }[]) ?? []) {
+      const list = idsByPhone.get(row.phone) ?? [];
+      list.push(row.id);
+      idsByPhone.set(row.phone, list);
+    }
+  }
+
+  let updated = 0;
+  let unchanged = 0;
+  let notFound = 0;
+  let ambiguous = 0;
+  let noPermission = 0;
+
+  for (const r of rows) {
+    const ids = idsByPhone.get(r.phone) ?? [];
+    if (ids.length === 0) {
+      notFound += 1;
+      continue;
+    }
+    if (ids.length > 1) {
+      ambiguous += 1;
+      continue;
+    }
+
+    const patch: Record<string, string> = {};
+    if (r.company.trim()) patch.company = r.company;
+    if (r.pref.trim()) patch.pref = r.pref;
+    if (r.address.trim()) patch.address = r.address;
+    if (r.email.trim()) patch.email = r.email;
+    if (r.url.trim()) patch.url = r.url;
+    if (r.cms.trim()) patch.cms = r.cms;
+    if (r.genre.trim()) patch.genre = r.genre;
+    if (r.subgenre.trim()) patch.subgenre = r.subgenre;
+
+    if (r.assignee.trim()) {
+      const match = resolveAssigneeMatch(r.assignee, lookup);
+      if (match) {
+        patch.assigned_to = match.id;
+        if (match.via === "person") assignedByPerson += 1;
+        else assignedByCompany += 1;
+      } else {
+        // 一致しなかった担当者欄は変更しない（今の割り当てのまま）
+        unmatchedAssigneesSet.add(r.assignee.trim());
+      }
+    }
+
+    if (Object.keys(patch).length === 0) {
+      unchanged += 1;
+      continue;
+    }
+
+    // count: "exact" を付けて、実際に更新できた件数を確認する。
+    // （チームリーダーなど閲覧範囲が限られるロールの場合、対象のリードが
+    // 自分の担当範囲外だとRLSにより0件のまま更新され、エラーにはならない
+    // ため、件数を見ないと「更新した」と誤って報告してしまう）
+    const { error, count } = await supabase.from("leads").update(patch, { count: "exact" }).eq("id", ids[0]);
+    if (error) throw new Error(error.message);
+    if ((count ?? 0) > 0) {
+      updated += 1;
+    } else {
+      noPermission += 1;
+    }
+  }
+
+  revalidatePath("/leads");
+
+  return {
+    total: parsedRows.length,
+    updated,
+    unchanged,
+    notFound,
+    ambiguous,
+    noPermission,
+    skippedNoPhone,
     unmatchedHeaders,
     assignedByPerson,
     assignedByCompany,

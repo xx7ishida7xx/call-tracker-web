@@ -10,10 +10,14 @@ export interface Company {
   name: string;
   display_name: string | null;
   is_home: boolean;
+  can_view_all_leads: boolean;
 }
 
 export async function getCompanies(supabase: SupabaseClient): Promise<Company[]> {
-  const { data } = await supabase.from("companies").select("id, name, display_name, is_home").order("name");
+  const { data } = await supabase
+    .from("companies")
+    .select("id, name, display_name, is_home, can_view_all_leads")
+    .order("name");
   const rows = (data as Company[]) ?? [];
   return rows.sort((a, b) => Number(b.is_home) - Number(a.is_home) || a.name.localeCompare(b.name, "ja"));
 }

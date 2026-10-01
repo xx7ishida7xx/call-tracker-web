@@ -134,3 +134,21 @@ export function parseLeadsCsv(text: string): { rows: ParsedLeadRow[]; unmatchedH
   }
   return { rows, unmatchedHeaders };
 }
+
+// ---------------------------------------------------------------------------
+// CSV エクスポート用：1つのセルの値を、必要なときだけダブルクォートで囲む
+// （カンマ・ダブルクォート・改行を含む場合のみ）。インポート側の
+// parseCsvText と対になるエンコーダー。
+// ---------------------------------------------------------------------------
+export function csvField(value: string): string {
+  if (/["\n\r,]/.test(value)) {
+    return `"${value.replace(/"/g, '""')}"`;
+  }
+  return value;
+}
+
+export function rowsToCsvText(headerRow: string[], rows: string[][]): string {
+  const lines = [headerRow, ...rows].map((row) => row.map(csvField).join(","));
+  // Excelで文字化けしないよう、先頭にBOMを付ける（parseCsvText側もBOMを除去する仕様）
+  return "﻿" + lines.join("\r\n") + "\r\n";
+}

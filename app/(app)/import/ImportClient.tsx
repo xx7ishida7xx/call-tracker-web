@@ -1,47 +1,79 @@
 "use client";
 
 import { useRef, useState, useTransition } from "react";
-import { importLeadsCsv } from "@/app/actions";
+import { importLeadsCsv, updateLeadsCsv } from "@/app/actions";
 import { nameFor, type Profile } from "@/lib/types";
-import { btnPrimaryCls, cardCls, errorCls, inputCls } from "@/lib/ui";
+import { btnPrimaryCls, btnSecondarySmCls, cardCls, errorCls, inputCls } from "@/lib/ui";
 
-type Result = {
+type ImportResult = {
   total: number;
   imported: number;
   skippedDuplicate: number;
+  skippedNoPhone: number;
   unmatchedHeaders: string[];
   assignedByPerson: number;
   assignedByCompany: number;
   unmatchedAssignees: string[];
 };
 
+type UpdateResult = {
+  total: number;
+  updated: number;
+  unchanged: number;
+  notFound: number;
+  ambiguous: number;
+  noPermission: number;
+  skippedNoPhone: number;
+  unmatchedHeaders: string[];
+  assignedByPerson: number;
+  assignedByCompany: number;
+  unmatchedAssignees: string[];
+};
+
+type Mode = "new" | "update";
+
 export default function ImportClient({ me, roster }: { me: Profile; roster: Profile[] }) {
+  const [mode, setMode] = useState<Mode>("new");
   const fileRef = useRef<HTMLInputElement>(null);
   const [fileName, setFileName] = useState("");
   const [assignTo, setAssignTo] = useState("");
   const [isPending, startTransition] = useTransition();
-  const [result, setResult] = useState<Result | null>(null);
+  const [importResult, setImportResult] = useState<ImportResult | null>(null);
+  const [updateResult, setUpdateResult] = useState<UpdateResult | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  function handleImport() {
+  function switchMode(next: Mode) {
+    setMode(next);
+    setImportResult(null);
+    setUpdateResult(null);
+    setError(null);
+  }
+
+  function handleRun() {
     const file = fileRef.current?.files?.[0];
     if (!file) {
       setError("CSVファイルを選択してください。");
       return;
     }
     setError(null);
-    setResult(null);
+    setImportResult(null);
+    setUpdateResult(null);
     const reader = new FileReader();
     reader.onload = () => {
       const text = String(reader.result || "");
       startTransition(async () => {
         try {
-          const r = await importLeadsCsv(text, assignTo || null);
-          setResult(r);
+          if (mode === "new") {
+            const r = await importLeadsCsv(text, assignTo || null);
+            setImportResult(r);
+          } else {
+            const r = await updateLeadsCsv(text);
+            setUpdateResult(r);
+          }
           if (fileRef.current) fileRef.current.value = "";
           setFileName("");
         } catch (e) {
-          setError(e instanceof Error ? e.message : "インポートに失敗しました。");
+          setError(e instanceof Error ? e.message : "取り込みに失敗しました。");
         }
       });
     };
@@ -51,17 +83,66 @@ export default function ImportClient({ me, roster }: { me: Profile; roster: Prof
 
   return (
     <div className="flex max-w-2xl flex-col gap-4">
-      <div>
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-lg font-bold tracking-tight text-slate-900">CSVインポート</h1>
-        <p className="mt-1 text-sm text-slate-500">
-          列名は「会社名, 都道府県, 住所, 電話番号, メールアドレス, URL, 元CMS, 業種, 業種詳細, 担当者」に対応しています(順不同)。
-          既存の電話番号と一致する行は自動的にスキップされます。
-        </p>
         {(me.role === "admin" || me.role === "teamlead") && (
-          <p className="mt-2 rounded-lg border border-orange-100 bg-orange-50/60 px-3 py-2 text-xs text-slate-600">
-            「担当者」列には、担当させたい人の表示名・登録名・メールアドレスのいずれか、または担当させたいゲスト会社名(「会社の管理」で登録した名前と完全一致)を入れておくと、行ごとに自動で割り当てます。
-            会社名を入れた行は、その会社のゲスト管理者に割り当てられます(後で振り分け直してください)。
-            一致しない・空欄の行は、下で選んだ担当者(未選択なら未割当)になります。
+          <a href="/leads-export" className={btnSecondarySmCls}>
+            全リードをCSVでエクスポート
+          </a>
+        )}
+      </div>
+
+      <p className="text-sm text-slate-500">
+        列名は「会社名, 都道府県, 住所, 電話番号, メールアドレス, URL, 元CMS, 業種, 業種詳細, 担当者」に対応しています（順不同）。
+        電話番号が空の行は、架電対象として使えないため取り込みの対象外になります。
+      </p>
+
+      {/* モード切り替え：新規にリードを足すのか、エクスポートしたCSVを直して既存のリードを更新するのか */}
+      <div className={`flex flex-col gap-2 ${cardCls} p-4`}>
+        <div className="flex flex-wrap gap-2">
+          <button
+            type="button"
+            onClick={() => switchMode("new")}
+            className={`rounded-lg border px-3 py-1.5 text-sm font-semibold transition ${
+              mode === "new"
+                ? "border-orange-300 bg-orange-100 text-orange-800"
+                : "border-slate-300 bg-white text-slate-600 hover:border-orange-300 hover:bg-orange-50"
+            }`}
+          >
+            ① 新規リストの読み込み
+          </button>
+          <button
+            type="button"
+            onClick={() => switchMode("update")}
+            className={`rounded-lg border px-3 py-1.5 text-sm font-semibold transition ${
+              mode === "update"
+                ? "border-orange-300 bg-orange-100 text-orange-800"
+                : "border-slate-300 bg-white text-slate-600 hover:border-orange-300 hover:bg-orange-50"
+            }`}
+          >
+            ② 既存リストの更新
+          </button>
+        </div>
+
+        {mode === "new" ? (
+          <p className="text-xs text-slate-500">
+            まだ登録されていないリードを新しく追加します。電話番号が既に登録されている行は、重複登録を避けるため自動的にスキップされます（中身の更新はされません）。
+          </p>
+        ) : (
+          <p className="text-xs text-slate-500">
+            「①」でエクスポートしたCSVの一部を直して、既存のリードの中身を更新します。<b>電話番号が一致した行だけ</b>
+            が対象で、一致しない行（新しいリード）は何も登録されません。<b>空欄のセルは「変更しない」</b>
+            として扱われるので、触っていない列はそのまま残ります。会社名・住所などの誤り修正や、担当者欄を埋めての割り振りに使えます。
+          </p>
+        )}
+
+        {(me.role === "admin" || me.role === "teamlead") && (
+          <p className="mt-1 rounded-lg border border-orange-100 bg-orange-50/60 px-3 py-2 text-xs text-slate-600">
+            「担当者」列には、担当させたい人の表示名・登録名・メールアドレスのいずれか、または担当させたいゲスト会社名（「会社の管理」で登録した名前と完全一致）を入れておくと、行ごとに自動で割り当てます。
+            会社名を入れた行は、その会社のゲスト管理者に割り当てられます（会社に所属する全員が、会社単位で閲覧・架電できるようになります）。
+            {mode === "new"
+              ? "一致しない・空欄の行は、下で選んだ担当者（未選択なら未割当）になります。"
+              : "一致しない・空欄の行は、今の担当者のまま変更されません。"}
           </p>
         )}
       </div>
@@ -78,11 +159,9 @@ export default function ImportClient({ me, roster }: { me: Profile; roster: Prof
           />
         </label>
 
-        {roster.length > 0 && (
+        {mode === "new" && roster.length > 0 && (
           <label className="flex flex-col gap-1 text-sm">
-            <span className="font-medium text-slate-700">
-              今回インポートする分の担当者をまとめて指定(任意)
-            </span>
+            <span className="font-medium text-slate-700">今回インポートする分の担当者をまとめて指定（任意）</span>
             <select className={inputCls} value={assignTo} onChange={(e) => setAssignTo(e.target.value)}>
               <option value="">未割当のままにする</option>
               {roster.map((r) => (
@@ -93,39 +172,65 @@ export default function ImportClient({ me, roster }: { me: Profile; roster: Prof
             </select>
           </label>
         )}
-        {me.role === "teamlead" && (
-          <p className="text-xs text-slate-500">
-            チームリーダーとしてインポートすると、リードは自分に割り当てられます。
-          </p>
+        {mode === "new" && me.role === "teamlead" && (
+          <p className="text-xs text-slate-500">チームリーダーとしてインポートすると、リードは自分に割り当てられます。</p>
         )}
 
         {error && <p className={errorCls}>{error}</p>}
-        {result && (
+
+        {importResult && (
           <div className="rounded-lg border border-emerald-100 bg-emerald-50 px-3 py-2 text-sm text-emerald-700">
             <p>
-              {result.total} 件中 {result.imported} 件を取り込みました
-              {result.skippedDuplicate > 0 && `(電話番号重複で ${result.skippedDuplicate} 件をスキップ)`}
+              {importResult.total} 件中 {importResult.imported} 件を取り込みました
+              {importResult.skippedDuplicate > 0 && `（電話番号重複で ${importResult.skippedDuplicate} 件をスキップ）`}
+              {importResult.skippedNoPhone > 0 && `（電話番号なしで ${importResult.skippedNoPhone} 件をスキップ）`}
             </p>
-            {(result.assignedByPerson > 0 || result.assignedByCompany > 0) && (
+            {(importResult.assignedByPerson > 0 || importResult.assignedByCompany > 0) && (
               <p className="mt-1">
-                担当者列による自動割り当て:個人一致 {result.assignedByPerson} 件 / 会社一致 {result.assignedByCompany} 件
+                担当者列による自動割り当て：個人一致 {importResult.assignedByPerson} 件 / 会社一致 {importResult.assignedByCompany} 件
               </p>
             )}
-            {result.unmatchedHeaders.length > 0 && (
-              <p className="mt-1 text-amber-700">
-                認識できなかった列: {result.unmatchedHeaders.join(", ")}
-              </p>
+            {importResult.unmatchedHeaders.length > 0 && (
+              <p className="mt-1 text-amber-700">認識できなかった列: {importResult.unmatchedHeaders.join(", ")}</p>
             )}
-            {result.unmatchedAssignees.length > 0 && (
+            {importResult.unmatchedAssignees.length > 0 && (
               <p className="mt-1 text-amber-700">
-                担当者列で一致しなかった値(未割当のままです): {result.unmatchedAssignees.join(", ")}
+                担当者列で一致しなかった値（未割当のままです）: {importResult.unmatchedAssignees.join(", ")}
               </p>
             )}
           </div>
         )}
 
-        <button onClick={handleImport} disabled={isPending || !fileName} className={`self-start ${btnPrimaryCls}`}>
-          {isPending ? "取り込み中…" : "インポート実行"}
+        {updateResult && (
+          <div className="rounded-lg border border-emerald-100 bg-emerald-50 px-3 py-2 text-sm text-emerald-700">
+            <p>
+              {updateResult.total} 件中 {updateResult.updated} 件を更新しました
+              {updateResult.unchanged > 0 && `（変更なしで ${updateResult.unchanged} 件はスキップ）`}
+            </p>
+            <p className="mt-1">
+              {updateResult.notFound > 0 && `電話番号が一致せず見つからなかった行: ${updateResult.notFound} 件　`}
+              {updateResult.ambiguous > 0 && `同じ電話番号の既存リードが複数あり対象外にした行: ${updateResult.ambiguous} 件　`}
+              {updateResult.noPermission > 0 && `閲覧範囲外のため更新できなかった行: ${updateResult.noPermission} 件`}
+            </p>
+            {updateResult.skippedNoPhone > 0 && <p className="mt-1">電話番号なしでスキップ: {updateResult.skippedNoPhone} 件</p>}
+            {(updateResult.assignedByPerson > 0 || updateResult.assignedByCompany > 0) && (
+              <p className="mt-1">
+                担当者列による自動割り当て：個人一致 {updateResult.assignedByPerson} 件 / 会社一致 {updateResult.assignedByCompany} 件
+              </p>
+            )}
+            {updateResult.unmatchedHeaders.length > 0 && (
+              <p className="mt-1 text-amber-700">認識できなかった列: {updateResult.unmatchedHeaders.join(", ")}</p>
+            )}
+            {updateResult.unmatchedAssignees.length > 0 && (
+              <p className="mt-1 text-amber-700">
+                担当者列で一致しなかった値（今の担当者のままです）: {updateResult.unmatchedAssignees.join(", ")}
+              </p>
+            )}
+          </div>
+        )}
+
+        <button onClick={handleRun} disabled={isPending || !fileName} className={`self-start ${btnPrimaryCls}`}>
+          {isPending ? "処理中…" : mode === "new" ? "インポート実行" : "更新インポート実行"}
         </button>
       </div>
     </div>

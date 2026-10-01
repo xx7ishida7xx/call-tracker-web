@@ -86,6 +86,7 @@ function CompaniesManager({
 }) {
   const [newName, setNewName] = useState("");
   const [newDisplayName, setNewDisplayName] = useState("");
+  const [newCanViewAllLeads, setNewCanViewAllLeads] = useState(false);
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
 
@@ -95,10 +96,20 @@ function CompaniesManager({
     setError(null);
     startTransition(async () => {
       try {
-        const created = await createCompany(name, newDisplayName);
-        onChange([...companies, { id: created.id, name: created.name, display_name: created.display_name, is_home: false }]);
+        const created = await createCompany(name, newDisplayName, newCanViewAllLeads);
+        onChange([
+          ...companies,
+          {
+            id: created.id,
+            name: created.name,
+            display_name: created.display_name,
+            is_home: false,
+            can_view_all_leads: created.can_view_all_leads,
+          },
+        ]);
         setNewName("");
         setNewDisplayName("");
+        setNewCanViewAllLeads(false);
       } catch (e) {
         setError(e instanceof Error ? e.message : "登録に失敗しました。");
       }
@@ -114,6 +125,9 @@ function CompaniesManager({
         </p>
         <p className="mt-1 text-xs text-slate-500">
           「表示名称」は、正式名称が長い場合などに使う略称です（例：正式名称「株式会社ミライアゴーゴー」→表示名称「MAG」）。未入力でも構いません。CSVインポートの「担当者」欄に表示名称が入っている場合も、正式名称と同じように自動で担当会社を認識します。
+        </p>
+        <p className="mt-1 text-xs text-slate-500">
+          ゲスト会社（guest_admin / guest_member）は、既定では「自社の誰かに割り当てられたリード」だけを閲覧・架電できます（会社に所属する全員で共有、個人単位の割り当てではありません）。「全リード閲覧」をオンにすると、他社に割り振った分も含めて全リードを検索・閲覧できるようになります。いつでも後から切り替え可能です。
         </p>
       </div>
       <div className="flex flex-col gap-1.5">
@@ -140,6 +154,15 @@ function CompaniesManager({
             placeholder="例：〇〇商事"
           />
         </label>
+        <label className="flex items-center gap-1.5 pb-2 text-xs font-semibold text-slate-600">
+          <input
+            type="checkbox"
+            checked={newCanViewAllLeads}
+            onChange={(e) => setNewCanViewAllLeads(e.target.checked)}
+            className="h-4 w-4 rounded border-slate-300 text-orange-600 focus:ring-orange-500"
+          />
+          全リード閲覧
+        </label>
         <button onClick={addCompany} disabled={isPending || !newName.trim()} className={btnPrimaryCls}>
           会社を追加
         </button>
@@ -160,11 +183,15 @@ function CompanyRow({
 }) {
   const [name, setName] = useState(company.name);
   const [displayName, setDisplayName] = useState(company.display_name ?? "");
+  const [canViewAllLeads, setCanViewAllLeads] = useState(company.can_view_all_leads);
   const [isPending, startTransition] = useTransition();
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const isDirty = name.trim() !== company.name || displayName.trim() !== (company.display_name ?? "");
+  const isDirty =
+    name.trim() !== company.name ||
+    displayName.trim() !== (company.display_name ?? "") ||
+    canViewAllLeads !== company.can_view_all_leads;
 
   function save() {
     const cleanName = name.trim();
@@ -172,9 +199,15 @@ function CompanyRow({
     setError(null);
     startTransition(async () => {
       try {
-        await renameCompany(company.id, cleanName, displayName);
+        await renameCompany(company.id, cleanName, displayName, canViewAllLeads);
         const cleanDisplayName = displayName.trim() || null;
-        onChange(companies.map((c) => (c.id === company.id ? { ...c, name: cleanName, display_name: cleanDisplayName } : c)));
+        onChange(
+          companies.map((c) =>
+            c.id === company.id
+              ? { ...c, name: cleanName, display_name: cleanDisplayName, can_view_all_leads: canViewAllLeads }
+              : c
+          )
+        );
         setSaved(true);
         setTimeout(() => setSaved(false), 2000);
       } catch (e) {
@@ -215,6 +248,15 @@ function CompanyRow({
       {company.is_home && (
         <span className="rounded-full bg-slate-200 px-2 py-0.5 text-[10px] font-semibold text-slate-600">自社</span>
       )}
+      <label className="flex items-center gap-1.5 text-xs font-semibold text-slate-600">
+        <input
+          type="checkbox"
+          checked={canViewAllLeads}
+          onChange={(e) => setCanViewAllLeads(e.target.checked)}
+          className="h-4 w-4 rounded border-slate-300 text-orange-600 focus:ring-orange-500"
+        />
+        全リード閲覧
+      </label>
       <button onClick={save} disabled={isPending || !isDirty} className={btnSecondarySmCls}>
         保存
       </button>
