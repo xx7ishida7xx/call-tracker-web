@@ -18,6 +18,7 @@ import {
 import { formatDate, formatDateTime } from "@/lib/format";
 import { applyLeadFilters, getCallFilteredLeadIds, type LeadSearchParams } from "@/lib/leadsFilter";
 import AssigneeCell from "./AssigneeCell";
+import MultiSelectFilter from "./MultiSelectFilter";
 import {
   btnAccentCls,
   btnPrimaryCls,
@@ -45,7 +46,7 @@ type LeadRow = {
 };
 
 type SearchParams = LeadSearchParams & {
-  // ページング・検索実行フラグ(このフラグが無い間はリード一覧を表示しない)
+  // ページング・検索実行フラグ（このフラグが無い間はリード一覧を表示しない）
   page?: string;
   searched?: string;
 };
@@ -63,11 +64,11 @@ export default async function LeadsPage({ searchParams }: { searchParams: Promis
   const cmsList = Array.isArray(sp.cms) ? sp.cms : sp.cms ? [sp.cms] : [];
   const callRankList = Array.isArray(sp.call_rank) ? sp.call_rank : sp.call_rank ? [sp.call_rank] : [];
 
-  // 「アポ禁」はオーナー・管理者以外には見せない(データ自体もRLSで見えなくなるが、
-  // 絞り込み欄や件数表示にも選択肢として出さないようにする)
+  // 「アポ禁」はオーナー・管理者以外には見せない（データ自体もRLSで見えなくなるが、
+  // 絞り込み欄や件数表示にも選択肢として出さないようにする）
   const visibleStatuses = canManage ? LEAD_STATUSES : LEAD_STATUSES.filter((s) => s !== APO_KIN_STATUS);
 
-  // 検索ボタンを押すまでは一覧を表示しない(searched=1 が付いているかどうかで判定)
+  // 検索ボタンを押すまでは一覧を表示しない（searched=1 が付いているかどうかで判定）
   const hasSearched = sp.searched === "1";
 
   const page = Math.max(1, parseInt(sp.page || "1", 10) || 1);
@@ -85,8 +86,8 @@ export default async function LeadsPage({ searchParams }: { searchParams: Promis
   let queryError: { message: string } | null = null;
 
   if (hasSearched) {
-    // コール履歴(コール者・結果・ランク・激アツ!!)は calls テーブル側の条件なので、
-    // 先に該当するリードIDを集めてから leads を絞り込む(一覧・詳細の前へ/次へで共通のロジック)
+    // コール履歴（コール者・結果・ランク・激アツ!!）は calls テーブル側の条件なので、
+    // 先に該当するリードIDを集めてから leads を絞り込む（一覧・詳細の前へ/次へで共通のロジック）
     const callLeadIds = await getCallFilteredLeadIds(supabase, sp, callRankList);
 
     let query = supabase
@@ -105,7 +106,7 @@ export default async function LeadsPage({ searchParams }: { searchParams: Promis
     queryError = error;
   }
 
-  // 実績パネル用:ステータス別の全体件数(絞り込み条件・検索実行の有無に関わらず常に表示)
+  // 実績パネル用：ステータス別の全体件数（絞り込み条件・検索実行の有無に関わらず常に表示）
   const { count: totalAll } = await supabase.from("leads").select("id", { count: "exact", head: true });
   const statusCounts = await Promise.all(
     visibleStatuses.map(async (status) => {
@@ -146,7 +147,7 @@ export default async function LeadsPage({ searchParams }: { searchParams: Promis
     return s ? `/leads?${s}` : "/leads";
   }
 
-  // 一覧の行からリード詳細へ渡す、現在の絞り込み条件(詳細画面の「前へ／次へ／一覧へ戻る」で使う)
+  // 一覧の行からリード詳細へ渡す、現在の絞り込み条件（詳細画面の「前へ／次へ／一覧へ戻る」で使う）
   const filterQS = hrefFor(page).split("?")[1] ?? "";
   const leadHref = (leadId: string) => (filterQS ? `/leads/${leadId}?${filterQS}` : `/leads/${leadId}`);
 
@@ -162,7 +163,7 @@ export default async function LeadsPage({ searchParams }: { searchParams: Promis
         </Link>
       </div>
 
-      {/* 実績パネル:全体のステータス別件数をひと目で確認できます(検索前でも常に表示) */}
+      {/* 実績パネル：全体のステータス別件数をひと目で確認できます（検索前でも常に表示） */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-7">
         <div className={statChipCls}>
           <span className={statChipLabelCls}>総件数</span>
@@ -176,7 +177,7 @@ export default async function LeadsPage({ searchParams }: { searchParams: Promis
         ))}
       </div>
 
-      {/* 検索条件:検索ボタンを押すまでは、この下のリード一覧は表示されません */}
+      {/* 検索条件：検索ボタンを押すまでは、この下のリード一覧は表示されません */}
       <form className={`flex flex-col gap-3 ${cardCls} p-4`}>
         <input type="hidden" name="searched" value="1" />
 
@@ -241,22 +242,22 @@ export default async function LeadsPage({ searchParams }: { searchParams: Promis
 
           <FilterGroup title="顧客名・電話番号">
             <label className="flex flex-col gap-1 text-xs font-semibold text-slate-500">
-              顧客名(部分一致)
+              顧客名（部分一致）
               <input type="text" name="company" defaultValue={sp.company} className={`w-48 ${inputCls}`} />
             </label>
             <label className="flex flex-col gap-1 text-xs font-semibold text-slate-500">
-              電話番号(前方一致)
+              電話番号（前方一致）
               <input type="text" name="phone_prefix" defaultValue={sp.phone_prefix} className={`w-40 ${inputCls}`} />
             </label>
           </FilterGroup>
 
           <FilterGroup title="代表者・担当者">
             <label className="flex flex-col gap-1 text-xs font-semibold text-slate-500">
-              代表者(部分一致)
+              代表者（部分一致）
               <input type="text" name="rep" defaultValue={sp.rep} className={`w-40 ${inputCls}`} />
             </label>
             <label className="flex flex-col gap-1 text-xs font-semibold text-slate-500">
-              担当者(部分一致)
+              担当者（部分一致）
               <input type="text" name="credit_company" defaultValue={sp.credit_company} className={`w-40 ${inputCls}`} />
             </label>
           </FilterGroup>
@@ -370,7 +371,7 @@ export default async function LeadsPage({ searchParams }: { searchParams: Promis
                   <tr key={lead.id} className="border-b border-slate-100 last:border-0 hover:bg-orange-50/40">
                     <td className="px-4 py-2.5">
                       <Link href={leadHref(lead.id)} className="font-medium text-slate-900 hover:text-orange-600 hover:underline">
-                        {lead.company || "(会社名未登録)"}
+                        {lead.company || "（会社名未登録）"}
                       </Link>
                     </td>
                     <td className="px-4 py-2.5 text-slate-600">{lead.pref}</td>
@@ -440,7 +441,7 @@ export default async function LeadsPage({ searchParams }: { searchParams: Promis
                 末尾
               </Link>
 
-              {/* 任意のページ番号へ直接移動する欄(現在の絞り込み条件は維持したまま移動します) */}
+              {/* 任意のページ番号へ直接移動する欄（現在の絞り込み条件は維持したまま移動します） */}
               <form action="/leads" method="get" className="flex items-center gap-1.5">
                 <input type="hidden" name="searched" value="1" />
                 {sp.company && <input type="hidden" name="company" value={sp.company} />}
@@ -500,50 +501,6 @@ function FilterGroup({ title, children }: { title: string; children: React.React
     <div className="flex flex-col gap-2 rounded-lg border border-slate-200 bg-slate-50/60 p-3">
       <p className="text-xs font-bold text-slate-500">{title}</p>
       <div className="flex flex-wrap items-end gap-3">{children}</div>
-    </div>
-  );
-}
-
-// 業種・都道府県のように選択肢が多い項目を、チェックボックスで複数選べるようにする
-// 絞り込み用ドロップダウン。JavaScript不要の <details> 要素で開閉しています。
-function MultiSelectFilter({
-  label,
-  name,
-  options,
-  selected,
-}: {
-  label: string;
-  name: string;
-  options: readonly string[];
-  selected: string[];
-}) {
-  return (
-    <div className="flex flex-col gap-1 text-xs font-semibold text-slate-500">
-      {label}
-      <details className="relative">
-        <summary
-          className={`${inputCls} flex w-40 cursor-pointer select-none items-center justify-between gap-2 [&::-webkit-details-marker]:hidden`}
-        >
-          <span className="truncate">{selected.length === 0 ? "すべて" : `${selected.length}件選択中`}</span>
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="h-3.5 w-3.5 shrink-0 text-slate-400">
-            <path d="M6 9l6 6 6-6" strokeLinecap="round" strokeLinejoin="round" />
-          </svg>
-        </summary>
-        <div className="absolute z-20 mt-1 max-h-56 w-56 overflow-y-auto rounded-lg border border-slate-200 bg-white p-2 shadow-lg">
-          {options.map((opt) => (
-            <label key={opt} className="flex items-center gap-2 rounded px-2 py-1 text-sm font-normal text-slate-700 hover:bg-orange-50">
-              <input
-                type="checkbox"
-                name={name}
-                value={opt}
-                defaultChecked={selected.includes(opt)}
-                className="rounded border-slate-300 text-orange-600 focus:ring-orange-500"
-              />
-              {opt}
-            </label>
-          ))}
-        </div>
-      </details>
     </div>
   );
 }
