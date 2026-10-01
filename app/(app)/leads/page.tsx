@@ -178,7 +178,12 @@ export default async function LeadsPage({ searchParams }: { searchParams: Promis
       </div>
 
       {/* 検索条件：検索ボタンを押すまでは、この下のリード一覧は表示されません */}
-      <form className={`flex flex-col gap-3 ${cardCls} p-4`}>
+      {/* key に今のURLの検索条件を入れておくことで、「リセット」ボタン（/leadsへ、条件なしで移動）を
+          押したときに、この検索条件欄一式をReactに作り直させる。
+          keyを指定しないと、URLの条件が空に変わっても画面側の入力欄・複数選択欄
+          （MultiSelectFilterの選択状態）は変わらないまま残ってしまい、
+          「リセットを押しても上の条件欄が空にならない」という不具合になっていた。 */}
+      <form key={JSON.stringify({ ...sp, page: undefined })} className={`flex flex-col gap-3 ${cardCls} p-4`}>
         <input type="hidden" name="searched" value="1" />
 
         <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
@@ -504,3 +509,4 @@ function FilterGroup({ title, children }: { title: string; children: React.React
     </div>
   );
 }
+
