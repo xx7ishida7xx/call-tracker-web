@@ -96,9 +96,9 @@ export async function addCall(
   revalidatePath("/leads");
 }
 
-// 通話記録の修正・削除(入力ミスをやり直せるように)。
+// 通話記録の修正・削除（入力ミスをやり直せるように）。
 // 編集・削除できるのは、その記録を登録した本人か、管理者・オーナーのみ
-// (calls テーブルのRLSでも同じ条件を確認している)。
+// （calls テーブルのRLSでも同じ条件を確認している）。
 export async function updateCall(
   callId: string,
   payload: {
@@ -160,15 +160,20 @@ export async function deleteCall(callId: string) {
 }
 
 // ---------------------------------------------------------------------------
-// リードへのファイル添付(診断レポート／アポ表)
-//   実ファイルは Supabase Storage の lead-attachments バケット(非公開)に保存し、
+// リードへのファイル添付（診断レポート／アポ表）
+//   実ファイルは Supabase Storage の lead-attachments バケット（非公開）に保存し、
 //   lead_attachments テーブルにはメタ情報だけを持つ。ダウンロードは署名付きURL経由。
 // ---------------------------------------------------------------------------
 const ATTACHMENT_BUCKET = "lead-attachments";
 
-// ファイル名からStorageのパスとして問題になりうる文字(スラッシュ・引用符など)だけを置き換える
-function sanitizeAttachmentFileName(name: string): string {
-  return name.replace(/[/\\?%*:|"<>]/g, "_").trim() || "ファイル";
+// Supabase Storageの保存先パス（キー）は、日本語などの非ASCII文字を含むと
+// 「Invalid key」エラーで保存できない（Storage側の制限）。
+// そのため、保存先のパスには拡張子だけを安全な形で残し、ファイル名そのものは使わない。
+// 元のファイル名（日本語含む）は lead_attachments.file_name 列に別途保存し、
+// 画面上の表示・ダウンロードリンクのテキストにはそちらを使う。
+function safeAttachmentExtension(name: string): string {
+  const m = /\.([a-zA-Z0-9]{1,10})$/.exec(name);
+  return m ? `.${m[1].toLowerCase()}` : "";
 }
 
 export async function addLeadAttachment(leadId: string, formData: FormData) {
@@ -186,10 +191,10 @@ export async function addLeadAttachment(leadId: string, formData: FormData) {
     throw new Error("ファイルを選択してください。");
   }
   if (file.size > MAX_ATTACHMENT_SIZE) {
-    throw new Error("ファイルサイズが大きすぎます(25MBまでです)。");
+    throw new Error("ファイルサイズが大きすぎます（25MBまでです）。");
   }
 
-  const path = `${leadId}/${crypto.randomUUID()}-${sanitizeAttachmentFileName(file.name)}`;
+  const path = `${leadId}/${crypto.randomUUID()}${safeAttachmentExtension(file.name)}`;
 
   const { error: uploadError } = await supabase.storage
     .from(ATTACHMENT_BUCKET)
@@ -221,8 +226,8 @@ export async function deleteLeadAttachment(attachmentId: string, leadId: string)
   if (!me) throw new Error("ログインが必要です。");
 
   // delete() に .select() を続けることで「実際に削除できた行」を受け取れる。
-  // RLS(本人 or 管理者のみ削除可)に該当しない場合は0件のまま静かに終わるだけなので、
-  // 0件だったら権限エラーとして扱う(Storage側のファイルも消さない)。
+  // RLS（本人 or 管理者のみ削除可）に該当しない場合は0件のまま静かに終わるだけなので、
+  // 0件だったら権限エラーとして扱う（Storage側のファイルも消さない）。
   const { data: deletedRows, error: deleteRowError } = await supabase
     .from("lead_attachments")
     .delete()
@@ -230,7 +235,7 @@ export async function deleteLeadAttachment(attachmentId: string, leadId: string)
     .select("file_path");
   if (deleteRowError) throw new Error(deleteRowError.message);
   if (!deletedRows || deletedRows.length === 0) {
-    throw new Error("このファイルを削除する権限がありません(アップロード本人か管理者のみ削除できます)。");
+    throw new Error("このファイルを削除する権限がありません（アップロード本人か管理者のみ削除できます）。");
   }
 
   await supabase.storage.from(ATTACHMENT_BUCKET).remove([deletedRows[0].file_path]);
@@ -268,7 +273,7 @@ export async function createLead(patch: {
 }
 
 // ---------------------------------------------------------------------------
-// メンバー管理(表示名 / ロール)
+// メンバー管理（表示名 / ロール）
 // ---------------------------------------------------------------------------
 export async function updateProfile(
   id: string,
@@ -282,9 +287,9 @@ export async function updateProfile(
 
 // ---------------------------------------------------------------------------
 // メンバー招待
-//   Supabaseの招待メール(Magic Link)を送り、相手がリンクからパスワードを
+//   Supabaseの招待メール（Magic Link）を送り、相手がリンクからパスワードを
 //   設定するとログインできるようになる。Service Role Key が必要な操作なので、
-//   専用の管理者クライアント(RLSを経由しない)を使い、この関数自身で権限確認を行う。
+//   専用の管理者クライアント（RLSを経由しない）を使い、この関数自身で権限確認を行う。
 // ---------------------------------------------------------------------------
 export async function inviteMember(email: string, role: Role, companyName: string | null) {
   const me = await getCurrentProfile();
@@ -298,7 +303,7 @@ export async function inviteMember(email: string, role: Role, companyName: strin
   }
 
   // オーナー以外の管理者は、管理者権限を持つメンバーを新しく作ることはできない
-  // (メンバー管理画面でのロール変更と同じ制限を、招待時にもかけている)
+  // （メンバー管理画面でのロール変更と同じ制限を、招待時にもかけている）
   if (role === "admin" && !me.is_owner) {
     throw new Error("管理者権限の付与はオーナーのみが行えます。");
   }
@@ -320,7 +325,7 @@ export async function inviteMember(email: string, role: Role, companyName: strin
   }
 
   // 新しく作られたプロフィールに、指定したロール・所属会社を反映する
-  // (自動作成時点では初期値の「staff」・会社未設定になっているため)
+  // （自動作成時点では初期値の「staff」・会社未設定になっているため）
   const newUserId = data.user?.id;
   const cleanCompanyName = companyName?.trim() || null;
   if (newUserId) {
@@ -337,7 +342,7 @@ export async function inviteMember(email: string, role: Role, companyName: strin
 }
 
 // ---------------------------------------------------------------------------
-// 会社マスタ(一覧管理)
+// 会社マスタ（一覧管理）
 //   ミライアゴーゴー自身・各ゲスト会社をこの一覧で登録・管理する。
 //   招待画面・メンバー編集画面の「所属会社」は、この一覧から選ぶ。
 // ---------------------------------------------------------------------------
@@ -381,7 +386,7 @@ export async function renameCompany(id: string, name: string) {
     throw new Error(error.message);
   }
 
-  // 所属メンバーの org_name(文字列で持っている)も、新しい会社名に合わせて更新する
+  // 所属メンバーの org_name（文字列で持っている）も、新しい会社名に合わせて更新する
   if (existing.name !== cleanName) {
     await supabase.from("profiles").update({ org_name: cleanName }).eq("org_name", existing.name);
   }
@@ -398,7 +403,7 @@ export async function deleteCompany(id: string) {
   const supabase = await createClient();
   const { data: company } = await supabase.from("companies").select("name, is_home").eq("id", id).maybeSingle();
   if (!company) throw new Error("会社が見つかりませんでした。");
-  if (company.is_home) throw new Error("自社(ミライアゴーゴー)は削除できません。");
+  if (company.is_home) throw new Error("自社（ミライアゴーゴー）は削除できません。");
 
   const { count } = await supabase
     .from("profiles")
@@ -416,9 +421,9 @@ export async function deleteCompany(id: string) {
 // ---------------------------------------------------------------------------
 // パスワード再設定
 //   Supabase標準の「パスワード再設定メール」を送るだけで、新しいパスワードが
-//   何になるかはこのアプリのどこにも残らない(本人だけがメール経由で設定する)。
-//   ・requestPasswordReset:ログイン画面から本人が申請する場合
-//   ・sendMemberPasswordReset:メンバー管理画面からオーナー・管理者が代理で送る場合
+//   何になるかはこのアプリのどこにも残らない（本人だけがメール経由で設定する）。
+//   ・requestPasswordReset：ログイン画面から本人が申請する場合
+//   ・sendMemberPasswordReset：メンバー管理画面からオーナー・管理者が代理で送る場合
 // ---------------------------------------------------------------------------
 async function sendResetEmail(email: string) {
   const h = await headers();
@@ -437,7 +442,7 @@ export async function requestPasswordReset(email: string) {
   if (!cleanEmail || !cleanEmail.includes("@")) {
     throw new Error("正しいメールアドレスを入力してください。");
   }
-  // 登録の有無にかかわらず同じ結果を返す(メールアドレスの存在有無を外部に漏らさないため)
+  // 登録の有無にかかわらず同じ結果を返す（メールアドレスの存在有無を外部に漏らさないため）
   await sendResetEmail(cleanEmail);
 }
 
@@ -486,7 +491,7 @@ export async function deleteMember(memberId: string) {
     throw new Error("オーナーを削除することはできません。");
   }
   // オーナー以外の管理者は、管理者権限を持つメンバーを削除できない
-  // (メンバー管理画面でのロール変更・招待と同じ制限)
+  // （メンバー管理画面でのロール変更・招待と同じ制限）
   if (!me.is_owner && target.role === "admin") {
     throw new Error("管理者の削除はオーナーのみが行えます。");
   }
@@ -526,7 +531,7 @@ export async function importLeadsCsv(csvText: string, assignTo: string | null) {
   const effectiveAssignTo =
     me.role === "admin" || me.role === "teamlead" ? assignTo : me.id;
 
-  // CSVの「担当者」欄(個人名 または ゲスト会社名)から、行ごとに割り当て先を決める準備。
+  // CSVの「担当者」欄（個人名 または ゲスト会社名）から、行ごとに割り当て先を決める準備。
   // 個人名に一致すればその人へ、会社名に一致すればその会社のゲスト管理者へ割り当てる。
   const needsAssigneeLookup =
     (me.role === "admin" || me.role === "teamlead") && rows.some((r) => r.assignee.trim() !== "");
@@ -574,7 +579,7 @@ export async function importLeadsCsv(csvText: string, assignTo: string | null) {
     return effectiveAssignTo;
   }
 
-  // 電話番号での重複チェック(電話番号ありの行のみ対象)
+  // 電話番号での重複チェック（電話番号ありの行のみ対象）
   const phones = Array.from(new Set(rows.map((r) => r.phone).filter(Boolean)));
   let existingPhones = new Set<string>();
   if (phones.length > 0) {
@@ -625,7 +630,7 @@ export async function importLeadsCsv(csvText: string, assignTo: string | null) {
 
 // ---------------------------------------------------------------------------
 // 目標管理・稼働日カレンダー
-//   実際の権限チェックはデータベース側(RLS)でも行われるが、ここでも先に
+//   実際の権限チェックはデータベース側（RLS）でも行われるが、ここでも先に
 //   チェックして分かりやすいエラーメッセージを返す。
 // ---------------------------------------------------------------------------
 
@@ -641,9 +646,9 @@ async function requireManageGoalsFor(profileId: string): Promise<Profile> {
   return target as Profile;
 }
 
-// 月間目標(アポ件数・契約件数)を保存する。
+// 月間目標（アポ件数・契約件数）を保存する。
 // ページ側で `saveMonthlyGoal.bind(null, profileId, month)` の形にしてフォームの action に
-// そのまま渡す想定(フォーム項目名: appointment_target / contract_target)。
+// そのまま渡す想定（フォーム項目名: appointment_target / contract_target）。
 export async function saveMonthlyGoal(profileId: string, month: string, formData: FormData) {
   await requireManageGoalsFor(profileId);
   const appointmentTarget = Math.max(0, parseInt(String(formData.get("appointment_target") || "0"), 10) || 0);
@@ -683,10 +688,10 @@ export async function saveDailyCallGoals(profileId: string, month: string, formD
   revalidatePath("/goals");
 }
 
-// 稼働日カレンダー(会社全体 or 個人)を、月分まとめて保存する。
+// 稼働日カレンダー（会社全体 or 個人）を、月分まとめて保存する。
 // 「平日=稼働・土日=休み・祝日=休み」という既定と同じ内容になる日は、登録行を削除して
-// カレンダーを既定に戻す(登録は既定と異なる日だけを持つ)。
-// フォーム項目名: working_2026-09-01 のチェックボックス(チェック=稼働日)。
+// カレンダーを既定に戻す（登録は既定と異なる日だけを持つ）。
+// フォーム項目名: working_2026-09-01 のチェックボックス（チェック=稼働日）。
 export async function saveWorkDayOverrides(profileId: string | null, month: string, formData: FormData) {
   const me = await getCurrentProfile();
   if (!me) throw new Error("ログインが必要です。");
@@ -720,7 +725,7 @@ export async function saveWorkDayOverrides(profileId: string | null, month: stri
   }
 
   if (toUpsert.length > 0) {
-    // 会社全体(profile_idがNULL)と個人とでユニーク制約が別(部分インデックス)のため、
+    // 会社全体(profile_idがNULL)と個人とでユニーク制約が別（部分インデックス）のため、
     // upsertの競合対象を指定できない。既存行を1件ずつ確認しながら insert / update する。
     for (const row of toUpsert) {
       let existingQuery = supabase.from("work_day_overrides").select("id").eq("date", row.date);
