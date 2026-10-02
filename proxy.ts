@@ -31,7 +31,10 @@ export async function proxy(request: NextRequest) {
   const path = request.nextUrl.pathname;
   // /auth/callback は招待メール等のリンクから未ログイン状態でアクセスされるため、
   // ログイン画面へのリダイレクト対象から除外する。
-  const isAuthRoute = path.startsWith("/login") || path.startsWith("/auth");
+  // /forgot-password も、ログイン画面から「パスワードをお忘れですか？」で遷移する、
+  // 未ログイン状態が前提の画面なので同様に除外する。
+  const isAuthRoute =
+    path.startsWith("/login") || path.startsWith("/auth") || path.startsWith("/forgot-password");
 
   if (!user && !isAuthRoute) {
     const url = request.nextUrl.clone();
