@@ -49,8 +49,8 @@ export function searchParamsToQueryString(sp: Record<string, string | string[] |
   return params.toString();
 }
 
-// コール履歴(コール者・結果・ランク・激アツ!!)による絞り込みは calls テーブル側の条件なので、
-// 先に該当するリードIDを集めておく。該当条件が無ければ null(絞り込みなし)を返す。
+// コール履歴（コール者・結果・ランク・激アツ!!）による絞り込みは calls テーブル側の条件なので、
+// 先に該当するリードIDを集めておく。該当条件が無ければ null（絞り込みなし）を返す。
 export async function getCallFilteredLeadIds(
   supabase: SupabaseClient,
   sp: LeadSearchParams,
@@ -66,7 +66,7 @@ export async function getCallFilteredLeadIds(
   return Array.from(new Set(((callRows ?? []) as { lead_id: string }[]).map((r) => r.lead_id)));
 }
 
-// leads テーブルへのクエリに、検索条件をすべて適用する(.select()済みのクエリに対して使う)。
+// leads テーブルへのクエリに、検索条件をすべて適用する（.select()済みのクエリに対して使う）。
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function applyLeadFilters<Q extends { eq: any; ilike: any; in: any; gte: any; lte: any; contains: any; not: any }>(
   query: Q,
@@ -90,8 +90,8 @@ export function applyLeadFilters<Q extends { eq: any; ilike: any; in: any; gte: 
     q = q.ilike("rep_name", `%${r}%`);
   }
   if (sp.credit_company && sp.credit_company.trim()) {
-    // credit_company 列は元々「信販会社」用だったが、現在は「担当者名(顧客側)」として
-    // 使っている(列名・パラメータ名は互換性のため変更していない)。
+    // credit_company 列は元々「信販会社」用だったが、現在は「担当者名（顧客側）」として
+    // 使っている（列名・パラメータ名は互換性のため変更していない）。
     const cc = sp.credit_company.trim().replace(/[%,]/g, "");
     q = q.ilike("credit_company", `%${cc}%`);
   }
@@ -102,11 +102,15 @@ export function applyLeadFilters<Q extends { eq: any; ilike: any; in: any; gte: 
   if (cmsList.length > 0) q = q.in("cms", cmsList);
   if (sp.recall_from) q = q.gte("recall_at", new Date(`${sp.recall_from}T00:00:00`).toISOString());
   if (sp.recall_to) q = q.lte("recall_at", new Date(`${sp.recall_to}T23:59:59`).toISOString());
-  if (sp.has_url === "yes") q = q.contains("contracts", [{ product: "HP", active: true }]);
+  // 注意：.contains() は第2引数がJSの配列だと「Postgresのネイティブ配列カラム」
+  // 向けの書式（cs.{...}）に変換されてしまい、オブジェクトを含む配列を渡すと
+  // 壊れたJSON文字列になってしまう（jsonbカラムであるcontractsには不正な値）。
+  // 「なし」側（.not + JSON.stringify）と同じく、JSON文字列として渡す必要がある。
+  if (sp.has_url === "yes") q = q.contains("contracts", JSON.stringify([{ product: "HP", active: true }]));
   if (sp.has_url === "no") q = q.not("contracts", "cs", JSON.stringify([{ product: "HP", active: true }]));
-  if (sp.has_meo === "yes") q = q.contains("contracts", [{ product: "MEO", active: true }]);
+  if (sp.has_meo === "yes") q = q.contains("contracts", JSON.stringify([{ product: "MEO", active: true }]));
   if (sp.has_meo === "no") q = q.not("contracts", "cs", JSON.stringify([{ product: "MEO", active: true }]));
-  if (sp.has_sns === "yes") q = q.contains("contracts", [{ product: "SNS運用", active: true }]);
+  if (sp.has_sns === "yes") q = q.contains("contracts", JSON.stringify([{ product: "SNS運用", active: true }]));
   if (sp.has_sns === "no") q = q.not("contracts", "cs", JSON.stringify([{ product: "SNS運用", active: true }]));
   if (sp.acquisition_desire) q = q.eq("acquisition_desire", sp.acquisition_desire);
   if (callLeadIds !== null) {
