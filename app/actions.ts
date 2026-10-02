@@ -96,6 +96,44 @@ export async function addCall(
   revalidatePath("/leads");
 }
 
+// 通話記録を編集・削除したあと、リード側のサマリー項目（最終架電日時・最終架電者・
+// 次回架電予定）を、実際に残っている通話履歴の中で一番新しいものに合わせて
+// 再計算する。
+//
+// addCall は通話記録を1件追加するたびにこれらの項目を更新しているが、通話記録を
+// 削除（deleteCall）しても、この追加時に設定された値はそのまま残ってしまい、
+// 「リード一覧には最終架電日が表示されているのに、リード詳細の通話履歴には
+// 何も表示されない（編集も削除もできない＝そもそも記録が存在しない）」という
+// 不整合が発生していた（2026-10-02 にヒロさんから報告・確認）。
+// 通話記録を編集（updateCall）した場合も、その記録が最新の通話だった場合は
+// 同様にズレるため、あわせて呼び出している。
+async function syncLeadFromLatestCall(supabase: Awaited<ReturnType<typeof createClient>>, leadId: string) {
+  const { data: latest } = await supabase
+    .from("calls")
+    .select("called_at, recall_at, recall_target, caller:profiles!calls_caller_id_fkey(name,display_name,email)")
+    .eq("lead_id", leadId)
+    .order("called_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  const callerProfile = latest
+    ? ((Array.isArray(latest.caller) ? latest.caller[0] : latest.caller) as
+        | { name: string | null; display_name: string | null; email: string | null }
+        | null)
+    : null;
+
+  const { error } = await supabase
+    .from("leads")
+    .update({
+      last_call_at: latest?.called_at ?? null,
+      last_call_staff: callerProfile ? callerProfile.display_name || callerProfile.name || callerProfile.email : null,
+      recall_at: latest?.recall_at ?? null,
+      recall_target: latest?.recall_target ?? null,
+    })
+    .eq("id", leadId);
+  if (error) throw new Error(error.message);
+}
+
 // 通話記録の修正・削除（入力ミスをやり直せるように）。
 // 編集・削除できるのは、その記録を登録した本人か、管理者・オーナーのみ
 // （calls テーブルのRLSでも同じ条件を確認している）。
@@ -139,6 +177,8 @@ export async function updateCall(
     .eq("id", callId);
   if (error) throw new Error(error.message);
 
+  await syncLeadFromLatestCall(supabase, existing.lead_id);
+
   revalidatePath(`/leads/${existing.lead_id}`);
 }
 
@@ -155,6 +195,8 @@ export async function deleteCall(callId: string) {
 
   const { error } = await supabase.from("calls").delete().eq("id", callId);
   if (error) throw new Error(error.message);
+
+  await syncLeadFromLatestCall(supabase, existing.lead_id);
 
   revalidatePath(`/leads/${existing.lead_id}`);
 }
