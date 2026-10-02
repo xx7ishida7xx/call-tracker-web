@@ -386,24 +386,24 @@ export default async function LeadsPage({ searchParams }: { searchParams: Promis
               <thead>
                 <tr className="border-b border-orange-100 bg-orange-50/60 text-left text-xs font-semibold text-slate-500">
                   <th className="px-4 py-2.5">会社名</th>
-                  <th className="px-4 py-2.5">都道府県</th>
-                  <th className="px-4 py-2.5">電話番号</th>
-                  <th className="px-4 py-2.5">ステータス</th>
-                  <th className="px-4 py-2.5">担当者</th>
-                  <th className="px-4 py-2.5">最終架電</th>
-                  <th className="px-4 py-2.5">次回架電予定</th>
+                  <th className="whitespace-nowrap px-4 py-2.5">都道府県</th>
+                  <th className="whitespace-nowrap px-4 py-2.5">電話番号</th>
+                  <th className="whitespace-nowrap px-4 py-2.5">ステータス</th>
+                  <th className="whitespace-nowrap px-4 py-2.5">担当者</th>
+                  <th className="whitespace-nowrap px-4 py-2.5">最終架電</th>
+                  <th className="whitespace-nowrap px-4 py-2.5">次回架電予定</th>
                 </tr>
               </thead>
               <tbody>
                 {leads.map((lead) => (
                   <tr key={lead.id} className="border-b border-slate-100 last:border-0 hover:bg-orange-50/40">
-                    <td className="px-4 py-2.5">
+                    <td className="px-4 py-2.5 align-top">
                       <Link href={leadHref(lead.id)} className="font-medium text-slate-900 hover:text-orange-600 hover:underline">
                         {lead.company || "（会社名未登録）"}
                       </Link>
                     </td>
-                    <td className="px-4 py-2.5 text-slate-600">{lead.pref}</td>
-                    <td className="px-4 py-2.5 text-slate-600">
+                    <td className="whitespace-nowrap px-4 py-2.5 align-top text-slate-600">{lead.pref}</td>
+                    <td className="whitespace-nowrap px-4 py-2.5 align-top text-slate-600">
                       {lead.phone ? (
                         <a href={`tel:${lead.phone}`} className="hover:text-orange-600 hover:underline" title="この番号に発信する">
                           {lead.phone}
@@ -412,10 +412,10 @@ export default async function LeadsPage({ searchParams }: { searchParams: Promis
                         "—"
                       )}
                     </td>
-                    <td className="px-4 py-2.5">
+                    <td className="whitespace-nowrap px-4 py-2.5 align-top">
                       <StatusBadge status={lead.status} />
                     </td>
-                    <td className="px-4 py-2.5 text-slate-600">
+                    <td className="whitespace-nowrap px-4 py-2.5 align-top text-slate-600">
                       {canManage ? (
                         <AssigneeCell leadId={lead.id} assignedTo={lead.assigned_to} roster={roster} />
                       ) : lead.assigned ? (
@@ -424,8 +424,8 @@ export default async function LeadsPage({ searchParams }: { searchParams: Promis
                         "未割当"
                       )}
                     </td>
-                    <td className="px-4 py-2.5 text-slate-500">{formatDate(lead.last_call_at)}</td>
-                    <td className="px-4 py-2.5 text-slate-500">{formatDateTime(lead.recall_at)}</td>
+                    <td className="whitespace-nowrap px-4 py-2.5 align-top text-slate-500">{formatDate(lead.last_call_at)}</td>
+                    <td className="whitespace-nowrap px-4 py-2.5 align-top text-slate-500">{formatDateTime(lead.recall_at)}</td>
                   </tr>
                 ))}
                 {leads.length === 0 && !queryError && (
