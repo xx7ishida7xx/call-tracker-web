@@ -25,7 +25,7 @@ import {
   type ContractItem,
 } from "@/lib/types";
 
-const CMS_CUSTOM_OTHER = "その他(自由入力)";
+const CMS_CUSTOM_OTHER = "その他（自由入力）";
 
 // 保存済みの参照元(cms)の値から、選択式UIの「大分類・下位選択肢・自由入力」を逆算する
 function splitCmsValue(value: string): { main: string; sub: string; custom: string } {
@@ -71,7 +71,7 @@ type CallWithCaller = Call & {
 };
 
 // 添付ファイル1件分の表示用データ。ダウンロードURLは非公開バケットの署名付きURLで、
-// サーバー側(page.tsx)で発行済みのものを受け取る(期限切れの場合は null)。
+// サーバー側（page.tsx）で発行済みのものを受け取る（期限切れの場合は null）。
 export type LeadAttachmentView = {
   id: string;
   lead_id: string;
@@ -116,10 +116,10 @@ export default function LeadDetailClient({
   attachments: LeadAttachmentView[];
   meId: string;
   isAdmin: boolean;
-  // 一覧画面での絞り込み・並び順を踏まえた「前のリード／次のリード」のID(無ければnull)
+  // 一覧画面での絞り込み・並び順を踏まえた「前のリード／次のリード」のID（無ければnull）
   prevId: string | null;
   nextId: string | null;
-  // 一覧画面から引き継いだ絞り込み条件(一覧へ戻る／前へ／次へのリンクに引き継ぐ)
+  // 一覧画面から引き継いだ絞り込み条件（一覧へ戻る／前へ／次へのリンクに引き継ぐ）
   queryString: string;
 }) {
   const [isPending, startTransition] = useTransition();
@@ -156,7 +156,7 @@ export default function LeadDetailClient({
     setSaved(false);
   }
 
-  // 参照元(旧:元CMS):保存値は1つの文字列だが、UI上は「大分類・下位選択肢・自由入力」の
+  // 参照元（旧:元CMS）：保存値は1つの文字列だが、UI上は「大分類・下位選択肢・自由入力」の
   // 3段階に分けて選べるようにしている。初期値は保存済みの値から逆算する。
   const initialCms = splitCmsValue(lead.cms);
   const [cmsMain, setCmsMain] = useState(initialCms.main);
@@ -170,9 +170,9 @@ export default function LeadDetailClient({
     setField("cms", joinCmsValue(main, sub, custom));
   }
 
-  // 契約状況:HP・MEO・SNS運用など、商材ごとに複数行を管理します
-  // (「有」チェックがまだ無かった時期に保存されたデータは active が undefined になっているため、
-  //   falseで補って読み込む)
+  // 契約状況：HP・MEO・SNS運用など、商材ごとに複数行を管理します
+  // （「有」チェックがまだ無かった時期に保存されたデータは active が undefined になっているため、
+  //   falseで補って読み込む）
   const [contracts, setContracts] = useState<ContractItem[]>(() =>
     lead.contracts && lead.contracts.length > 0
       ? lead.contracts.map((c) => ({ ...c, active: c.active ?? false }))
@@ -219,7 +219,7 @@ export default function LeadDetailClient({
     });
   }
 
-  // 通話記録フォーム:結果は「つながらなかった／つながった／その他／訪問結果」の
+  // 通話記録フォーム：結果は「つながらなかった／つながった／その他／訪問結果」の
   // 4グループから1つだけ選ぶ形式。結果を選ぶと有効架電・アポ獲得・ステータスが
   // 自動で連動するため、それらを個別に指定する項目はない。
   const [callForm, setCallForm] = useState(EMPTY_CALL_FORM);
@@ -243,7 +243,7 @@ export default function LeadDetailClient({
     setCallForm((f) => ({ ...f, resultGroup: "その他", usingFreeText: true, freeText: value, result: value }));
   }
 
-  // 通話記録を保存する。保存後にそのままこの画面に残る(従来通り)か、
+  // 通話記録を保存する。保存後にそのままこの画面に残る（従来通り）か、
   // 次のリード／一覧画面へ移動するかを afterSave で切り替える。
   function submitCall(afterSave?: () => void) {
     setCallError(null);
@@ -280,9 +280,9 @@ export default function LeadDetailClient({
 
   // 結果を選んだ後、有効架電・アポ獲得・ステータスがどう連動するかのプレビュー文
   function outcomeSummary(outcome: CallOutcome): string {
-    const parts = [outcome.connected ? "有効架電:ON" : "有効架電:OFF"];
-    if (outcome.appointment) parts.push("アポ獲得:ON");
-    parts.push(outcome.nextStatus ? `ステータス → ${outcome.nextStatus}` : "ステータス:変更なし");
+    const parts = [outcome.connected ? "有効架電：ON" : "有効架電：OFF"];
+    if (outcome.appointment) parts.push("アポ獲得：ON");
+    parts.push(outcome.nextStatus ? `ステータス → ${outcome.nextStatus}` : "ステータス：変更なし");
     return parts.join("／");
   }
 
@@ -293,7 +293,7 @@ export default function LeadDetailClient({
           リード一覧
         </Link>
         <span>/</span>
-        <span className="text-slate-800">{lead.company || "(会社名未登録)"}</span>
+        <span className="text-slate-800">{lead.company || "（会社名未登録）"}</span>
       </div>
 
       <div className="grid gap-6 lg:grid-cols-2">
@@ -369,7 +369,7 @@ export default function LeadDetailClient({
                 {cmsMain === "その他" && cmsSub === CMS_CUSTOM_OTHER && (
                   <input
                     className={inputCls}
-                    placeholder="サービス名を入力(例:ペライチ)"
+                    placeholder="サービス名を入力（例：ペライチ）"
                     value={cmsCustom}
                     onChange={(e) => updateCms(cmsMain, cmsSub, e.target.value)}
                   />
@@ -411,7 +411,7 @@ export default function LeadDetailClient({
             )}
 
             <p className={fieldGroupLabelCls}>顧客側の担当者情報</p>
-            <Field label="代表者名(顧客側)">
+            <Field label="代表者名（顧客側）">
               <input className={inputCls} value={form.rep_name} onChange={(e) => setField("rep_name", e.target.value)} />
             </Field>
             <Field label="代表者携帯">
@@ -420,16 +420,13 @@ export default function LeadDetailClient({
                 <QuickCallLink phone={form.rep_mobile} />
               </div>
             </Field>
-            <Field label="担当者名(顧客側)">
+            <Field label="担当者名（顧客側）">
               <input
                 className={inputCls}
-                placeholder="例:〇〇様"
+                placeholder="例：〇〇様"
                 value={form.credit_company}
                 onChange={(e) => setField("credit_company", e.target.value)}
               />
-            </Field>
-            <Field label="連絡先氏名">
-              <input className={inputCls} value={form.contact_name} onChange={(e) => setField("contact_name", e.target.value)} />
             </Field>
             <Field label="連絡先携帯">
               <div className="flex gap-1.5">
@@ -545,7 +542,7 @@ export default function LeadDetailClient({
               </div>
             </div>
             <p className="-mt-2 text-xs text-slate-400">
-              ※集客意欲はリード自体の情報のため、変更した場合は右の「リード情報を保存する」ボタンで保存してください(通話の登録では保存されません)。
+              ※集客意欲はリード自体の情報のため、変更した場合は右の「リード情報を保存する」ボタンで保存してください（通話の登録では保存されません）。
             </p>
 
             <Field label="メモ">
@@ -588,7 +585,7 @@ export default function LeadDetailClient({
         </section>
       </div>
 
-      {/* 前へ/次へ/一覧へ戻る:リード間の移動だけをまとめた操作バー(契約状況の上に配置) */}
+      {/* 前へ/次へ/一覧へ戻る：リード間の移動だけをまとめた操作バー（契約状況の上に配置） */}
       <section className={`${cardCls} flex flex-wrap items-center gap-2 p-4`}>
         {prevHref ? (
           <Link href={prevHref} className={btnSecondarySmCls}>
@@ -609,7 +606,7 @@ export default function LeadDetailClient({
         </Link>
       </section>
 
-      {/* 契約状況:HP・MEO・SNS運用など、商材ごとに複数行を登録できます */}
+      {/* 契約状況：HP・MEO・SNS運用など、商材ごとに複数行を登録できます */}
       <section className={`${cardCls} p-5`}>
         <div className="mb-4 flex items-center justify-between">
           <h2 className={sectionTitleCls}>契約状況</h2>
@@ -625,7 +622,7 @@ export default function LeadDetailClient({
                 <th className="px-3 py-2">契約会社名</th>
                 <th className="px-3 py-2">有</th>
                 <th className="px-3 py-2">契約形態</th>
-                <th className="px-3 py-2">月額(円)</th>
+                <th className="px-3 py-2">月額（円）</th>
                 <th className="px-3 py-2">契約期間</th>
                 <th className="px-3 py-2" />
               </tr>
@@ -636,7 +633,7 @@ export default function LeadDetailClient({
                   <td className="px-3 py-2">
                     <input
                       className={inputCls}
-                      placeholder="例:HP、MEO、SNS運用"
+                      placeholder="例：HP、MEO、SNS運用"
                       value={c.product}
                       onChange={(e) => setContractField(i, "product", e.target.value)}
                     />
@@ -651,7 +648,7 @@ export default function LeadDetailClient({
                   <td className="px-3 py-2 text-center">
                     <input
                       type="checkbox"
-                      title="この商材を契約中(有)の場合はチェック。リード一覧の「◯◯有無」検索はこのチェックで判定します。"
+                      title="この商材を契約中（有）の場合はチェック。リード一覧の「◯◯有無」検索はこのチェックで判定します。"
                       className="h-4 w-4 rounded border-slate-300 text-orange-600 focus:ring-orange-500"
                       checked={c.active}
                       onChange={(e) => setContractField(i, "active", e.target.checked)}
@@ -675,7 +672,7 @@ export default function LeadDetailClient({
                     <input
                       className={inputCls}
                       inputMode="numeric"
-                      placeholder="例:30000"
+                      placeholder="例：30000"
                       value={c.monthly_fee}
                       onChange={(e) => setContractField(i, "monthly_fee", e.target.value)}
                     />
@@ -683,7 +680,7 @@ export default function LeadDetailClient({
                   <td className="px-3 py-2">
                     <input
                       className={inputCls}
-                      placeholder="例:2026/10〜2027/09"
+                      placeholder="例：2026/10〜2027/09"
                       value={c.period}
                       onChange={(e) => setContractField(i, "period", e.target.value)}
                     />
@@ -728,7 +725,7 @@ export default function LeadDetailClient({
         )}
       </section>
 
-      {/* 添付ファイル(診断レポート／アポ表) */}
+      {/* 添付ファイル（診断レポート／アポ表） */}
       <section className={`${cardCls} p-5`}>
         <h2 className={`mb-1 ${sectionTitleCls}`}>添付ファイル</h2>
         <p className="mb-4 text-xs text-slate-400">
@@ -751,7 +748,7 @@ export default function LeadDetailClient({
   );
 }
 
-// 添付ファイルの区分(診断レポート／アポ表)ごとの、アップロードフォーム＋履歴一覧
+// 添付ファイルの区分（診断レポート／アポ表）ごとの、アップロードフォーム＋履歴一覧
 function AttachmentGroup({
   leadId,
   category,
@@ -818,7 +815,7 @@ function AttachmentGroup({
         />
         <input
           type="text"
-          placeholder="メモ(任意)"
+          placeholder="メモ（任意）"
           value={note}
           onChange={(e) => setNote(e.target.value)}
           className={inputCls}
@@ -847,7 +844,7 @@ function AttachmentGroup({
                   </a>
                 ) : (
                   <span className="block truncate text-sm font-semibold text-slate-400" title="ページを開き直すとダウンロードできます">
-                    {a.file_name}(リンク期限切れ)
+                    {a.file_name}（リンク期限切れ）
                   </span>
                 )}
                 <p className="mt-0.5 text-xs text-slate-400">
@@ -874,7 +871,7 @@ function AttachmentGroup({
 }
 
 // 通話履歴の1件分。入力ミスの修正・誤登録の削除ができるよう、編集・削除のUIを持つ。
-// 編集・削除ができるのは、その通話を登録した本人か、管理者・オーナーのみ(サーバー側でも確認する)。
+// 編集・削除ができるのは、その通話を登録した本人か、管理者・オーナーのみ（サーバー側でも確認する）。
 function CallHistoryItem({ call, meId, isAdmin }: { call: CallWithCaller; meId: string; isAdmin: boolean }) {
   const canManage = isAdmin || call.caller_id === meId;
   const [editing, setEditing] = useState(false);
@@ -999,7 +996,7 @@ function CallHistoryItem({ call, meId, isAdmin }: { call: CallWithCaller; meId: 
         {call.recall_at && (
           <p className="mt-1 text-xs text-slate-500">
             次回架電予定: {formatDateTime(call.recall_at)}
-            {call.recall_target ? `(${call.recall_target})` : ""}
+            {call.recall_target ? `（${call.recall_target}）` : ""}
           </p>
         )}
         {error && <p className={`mt-1 ${errorCls}`}>{error}</p>}
