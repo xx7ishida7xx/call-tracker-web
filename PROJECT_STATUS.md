@@ -140,9 +140,11 @@ mainブランチに反映済みであることを確認済み。
       「Invite user」「Reset Password」で、`{{ .ConfirmationURL }}` ではなく
       `/auth/confirm?token_hash=...&type=...&next=/set-password` を使った
       カスタムリンクになっているか（過去に依頼済みだが未確認）
-- [ ] Supabase ダッシュボード → Authentication → Sessions で、
+- [x] Supabase ダッシュボード → Authentication → Sessions で、
       「Time-box user sessions」「Inactivity timeout」が 8 hours に設定されているか
-      （過去に依頼済みだが未確認）
+      → 2026-10-02 に確認・設定完了（以前は両方とも 0 = never になっていたため、
+      この日に両方とも 8 hours に変更し、保存成功（"Successfully updated user
+      session settings"）を画面で確認済み）
 - [ ] 通話履歴の「編集」ボタンの動作確認（削除は2026-09-30に確認済み、編集は確認待ち）
 
 ## 運用上の注意（Claude向け）
