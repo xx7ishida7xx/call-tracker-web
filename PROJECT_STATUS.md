@@ -187,17 +187,14 @@ process failed」のようなエラーで失敗する可能性がある（Supaba
 5. Supabase ダッシュボード → Authentication → Attack Protection →
    「Enable Captcha protection」をON、プロバイダをTurnstile、Secret Keyを入力してSave → 完了（2026-10-02）
 
-**反映後に見つかった課題（2026-10-02、まだ未解決）**：
+**反映後に見つかった課題（2026-10-02、CAPTCHA有効化の影響）**：
 - `sendMemberPasswordReset`（メンバー管理画面からの代理パスワードリセット）は、
   想定通り失敗するようになった（画面上に「Minified React error #441」という
   汎用エラーが表示される。本体は「サーバー側の処理でエラー」という意味で、
   実際の原因はCAPTCHAトークン無しで`/recover`を呼んでいるため）。
   → ヒロさんと相談し、**Resend（メール配信サービス、無料枠で月3,000通・1日100通まで）を
-  導入して完全自動化する方針**に決定。ただし「一旦後回しにしましょう」とのことで、
-  今は保留中。対応内容の想定：Admin API（`generateLink`、CAPTCHA対象外）でリンクを
-  発行し、Resend経由でそのリンクを含むメールを自動送信するよう`sendMemberPasswordReset`を
-  書き換える。作業には、ヒロさん側でのResendアカウント作成・送信ドメインのDNS認証設定
-  （ドメイン管理画面でのレコード追加）が必要になる。
+  導入して完全自動化する方針**に決定。一旦保留にしていたが、2026-10-02に再開。
+  下の「代理パスワードリセットのResend自動化（2026-10-02）」を参照。
 - 「パスワードをお忘れですか？」のリンクを押しても`/forgot-password`画面に
   遷移しない（押しても何も起きないように見える）という不具合が報告され、調査の結果、
   CAPTCHA対応とは無関係の**既存の別バグ**と判明した。原因：`proxy.ts`の
@@ -207,6 +204,31 @@ process failed」のようなエラーで失敗する可能性がある（Supaba
   これまで見逃されていた）。`proxy.ts`の`isAuthRoute`判定に
   `path.startsWith("/forgot-password")`を追加して修正。
   2026-10-02 作成・お渡し済み。本番環境への反映・動作確認まで完了（ヒロさん確認済み）。
+
+### 代理パスワードリセットのResend自動化（2026-10-02）
+
+送信元ドメインは、ヒロさんのご希望で「miraiagogo.co.jpの専用サブドメインを使う」を
+採用。本体の miraiagogo.co.jp の通常メールとは切り離した
+`notify.miraiagogo.co.jp` を送信元として使う想定（Resend側でこのサブドメインを
+追加・DNS認証する）。
+
+- `app/actions.ts` の `sendMemberPasswordReset` を書き換え、Supabase標準の
+  `resetPasswordForEmail`（CAPTCHA必須）ではなく、CAPTCHA対象外のAdmin API
+  `generateLink`（type: "recovery"）で再設定リンクだけを発行し、そのリンクを
+  Resendのメール送信APIで直接送るように変更した（npmパッケージは追加せず、
+  `fetch`でResendのAPIを直接呼ぶ実装。パッケージ追加はGitHub手動アップロード
+  運用と相性が悪いため避けた）。
+- 新しく必要なVercel環境変数：
+  - `RESEND_API_KEY`（Secret）：ResendのAPIキー
+  - `RESEND_FROM_EMAIL`（Config）：送信元。例：
+    `SamuraiONコールトラッカー <no-reply@notify.miraiagogo.co.jp>`
+- Resend側で未設定・未検証の間は、ボタンを押すと「メール自動送信の設定が
+  完了していません」という分かりやすいエラーメッセージが出るだけで、
+  他の機能には影響しない（安全に先にコードだけアップロードできる）。
+- 2026-10-02 コード作成・`tsc --noEmit`/`eslint`/`next build` いずれも確認済み。
+  お渡し・反映はこれから。ヒロさん側でのResendアカウント作成・
+  notify.miraiagogo.co.jp の追加・DNSレコード設定・APIキー発行が必要
+  （下の「まだ確認・完了できていない項目」参照）。
 
 ## リードステータスの見直し（2026-10-02、ヒロさんからのご依頼）
 
@@ -272,12 +294,19 @@ process failed」のようなエラーで失敗する可能性がある（Supaba
       migration 0019を実行し、GitHubにもコード（lib/types.ts、lib/ui.ts）を
       アップロードする
       → 2026-10-02 完了。ヒロさんが本番環境で反映・動作確認済み（「出来ました。」）
-- [ ] リード一覧の表示崩れ修正（会社名が長いと他の列まで2行に折り返される不具合）を
+- [x] リード一覧の表示崩れ修正（会社名が長いと他の列まで2行に折り返される不具合）を
       GitHubにアップロードし、長い会社名のリードがあるページで、都道府県・電話番号・
       ステータス・担当者・最終架電・次回架電予定が1行で表示されることを確認する
+      → 2026-10-02 完了。ヒロさんが本番環境で動作確認済み（「出来た。」）
+- [ ] メンバー管理画面からの代理パスワードリセットのResend自動化（詳細は上の
+      「代理パスワードリセットのResend自動化（2026-10-02）」を参照）：
+      (1) ヒロさんがResendアカウントを作成し、notify.miraiagogo.co.jp を
+      送信ドメインとして追加してDNS認証する、(2) Resendで発行したAPIキーと
+      送信元アドレスをVercelの環境変数（RESEND_API_KEY・RESEND_FROM_EMAIL）に
+      設定する、(3) コード（app/actions.ts）をGitHubにアップロードする、
+      (4) メンバー管理画面から実際にパスワード再設定メールを送ってみて、
+      対象メンバー宛に届くことを確認する
       （2026-10-02 作成・お渡し済み）
-- [ ] メンバー管理画面からの代理パスワードリセットの自動化をResend経由に
-      切り替える（2026-10-02、ヒロさんの意向で方針決定・実施は保留中）
 - [ ] Supabase ダッシュボード → Authentication → Multi-Factor（MFA）を、
       少なくとも管理者・オーナーのアカウントに設定する
 - [ ] migration 0017（通話記録を削除した際に、リードの「最終架電」などが

@@ -495,10 +495,11 @@ export async function deleteCompany(id: string) {
 //   Supabase標準の「パスワード再設定メール」を送るだけで、新しいパスワードが
 //   何になるかはこのアプリのどこにも残らない（本人だけがメール経由で設定する）。
 //   ・requestPasswordReset：ログイン画面から本人が申請する場合（CAPTCHA対応）
-//   ・sendMemberPasswordReset：メンバー管理画面からオーナー・管理者が代理で送る場合
-//     （画面上にCAPTCHAが無いため、captchaTokenは渡さない。Supabase側で
-//      CAPTCHA保護を有効にした場合、この代理送信が失敗する可能性があるので、
-//      有効化後は必ずこの機能も動作確認すること）
+//   ・sendMemberPasswordReset：メンバー管理画面からオーナー・管理者が代理で送る場合。
+//     画面上にCAPTCHAが無いため、Supabase標準の resetPasswordForEmail
+//     （CAPTCHA必須）は使えない。代わりにAdmin API（generateLink、CAPTCHA対象外）で
+//     再設定リンクだけを発行し、そのリンクをResend（メール配信サービス）経由で
+//     自動送信する（2026-10-02 Resend導入）。
 // ---------------------------------------------------------------------------
 async function sendResetEmail(email: string, captchaToken?: string) {
   const h = await headers();
@@ -522,6 +523,38 @@ export async function requestPasswordReset(email: string, captchaToken?: string)
   await sendResetEmail(cleanEmail, captchaToken);
 }
 
+// Resend（https://resend.com）のAPIを直接呼び出してメールを送る。
+// npmパッケージは使わず fetch だけで呼ぶ（このプロジェクトはGitHub Web UIでの
+// 手動アップロード運用のため、依存パッケージの追加はできるだけ避けたい）。
+async function sendResendEmail(params: { to: string; subject: string; html: string; text: string }) {
+  const apiKey = process.env.RESEND_API_KEY;
+  const from = process.env.RESEND_FROM_EMAIL;
+  if (!apiKey || !from) {
+    throw new Error(
+      "メール自動送信の設定が完了していません（Vercelの環境変数 RESEND_API_KEY / RESEND_FROM_EMAIL を確認してください）。"
+    );
+  }
+
+  const res = await fetch("https://api.resend.com/emails", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      from,
+      to: params.to,
+      subject: params.subject,
+      html: params.html,
+      text: params.text,
+    }),
+  });
+  if (!res.ok) {
+    const body = await res.text().catch(() => "");
+    throw new Error(`メールの送信に失敗しました（${res.status}）。${body}`.trim());
+  }
+}
+
 export async function sendMemberPasswordReset(memberId: string) {
   const me = await getCurrentProfile();
   if (!me || !canManageMembers(me)) {
@@ -536,7 +569,38 @@ export async function sendMemberPasswordReset(memberId: string) {
   if (error) throw new Error(error.message);
   if (!target) throw new Error("メンバーが見つかりませんでした。");
 
-  await sendResetEmail(target.email);
+  const h = await headers();
+  const host = h.get("host");
+  const origin = host ? `https://${host}` : undefined;
+
+  // CAPTCHA保護の対象外である Admin API（generateLink）で、再設定リンクだけを発行する
+  // （Supabase標準のメール送信機能は使わず、リンクの送信は下のResend経由で行う）。
+  const admin = createAdminClient();
+  const { data: linkData, error: linkError } = await admin.auth.admin.generateLink({
+    type: "recovery",
+    email: target.email,
+    options: {
+      redirectTo: origin ? `${origin}/auth/confirm?next=/set-password` : undefined,
+    },
+  });
+  if (linkError) throw new Error(linkError.message);
+  const actionLink = linkData?.properties?.action_link;
+  if (!actionLink) throw new Error("再設定用リンクの発行に失敗しました。");
+
+  await sendResendEmail({
+    to: target.email,
+    subject: "【SamuraiONコールトラッカー】パスワード再設定のご案内",
+    html: `
+      <div style="font-family: sans-serif; line-height: 1.7; color: #1e293b;">
+        <p>いつもSamuraiONコールトラッカーをご利用いただきありがとうございます。</p>
+        <p>管理者よりパスワード再設定のご案内が届いています。下記のリンクから新しいパスワードを設定してください。</p>
+        <p><a href="${actionLink}" style="color:#ea580c;">${actionLink}</a></p>
+        <p>このメールに心当たりがない場合は、このまま破棄していただいて問題ありません。</p>
+      </div>
+    `,
+    text: `いつもSamuraiONコールトラッカーをご利用いただきありがとうございます。\n\n管理者よりパスワード再設定のご案内が届いています。下記のリンクから新しいパスワードを設定してください。\n\n${actionLink}\n\nこのメールに心当たりがない場合は、このまま破棄していただいて問題ありません。`,
+  });
+
   return { email: target.email };
 }
 
