@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { requestPasswordReset } from "@/app/actions";
 import { btnPrimaryCls, btnSecondaryCls, errorCls, inputCls, successCls } from "@/lib/ui";
+import TurnstileWidget from "@/components/TurnstileWidget";
 
 // ログイン画面の「パスワードをお忘れですか？」から来る画面。
 // メールアドレスを入力すると、Supabaseから再設定用のメールが届き、
@@ -13,16 +14,22 @@ export default function ForgotPasswordPage() {
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [sent, setSent] = useState(false);
+  const [captchaToken, setCaptchaToken] = useState<string | null>(null);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
     setPending(true);
     try {
-      await requestPasswordReset(email);
+      await requestPasswordReset(email, captchaToken ?? undefined);
       setSent(true);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "送信に失敗しました。");
+      const msg = err instanceof Error ? err.message : "";
+      if (msg.toLowerCase().includes("captcha")) {
+        setError("ボット確認の読み込みに時間がかかっています。少し待ってから、もう一度お試しください。");
+      } else {
+        setError(msg || "送信に失敗しました。");
+      }
     } finally {
       setPending(false);
     }
@@ -66,6 +73,8 @@ export default function ForgotPasswordPage() {
                 className={inputCls}
               />
             </label>
+
+            <TurnstileWidget onToken={setCaptchaToken} />
 
             {error && <p className={errorCls}>{error}</p>}
 

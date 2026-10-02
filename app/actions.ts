@@ -18,12 +18,22 @@ export type AuthState = { error?: string } | undefined;
 export async function signIn(_prevState: AuthState, formData: FormData): Promise<AuthState> {
   const email = String(formData.get("email") || "").trim();
   const password = String(formData.get("password") || "");
+  // Cloudflare Turnstile（CAPTCHA）のトークン。NEXT_PUBLIC_TURNSTILE_SITE_KEY が
+  // 未設定の間はログイン画面にCAPTCHA自体が表示されないため、常に空文字になる。
+  const captchaToken = String(formData.get("captchaToken") || "") || undefined;
   if (!email || !password) {
     return { error: "メールアドレスとパスワードを入力してください。" };
   }
   const supabase = await createClient();
-  const { error } = await supabase.auth.signInWithPassword({ email, password });
+  const { error } = await supabase.auth.signInWithPassword({
+    email,
+    password,
+    options: captchaToken ? { captchaToken } : undefined,
+  });
   if (error) {
+    if (error.message.toLowerCase().includes("captcha")) {
+      return { error: "ボット確認の読み込みに時間がかかっています。少し待ってから、もう一度お試しください。" };
+    }
     return { error: "メールアドレスまたはパスワードが正しくありません。" };
   }
   redirect("/leads");
@@ -484,10 +494,13 @@ export async function deleteCompany(id: string) {
 // パスワード再設定
 //   Supabase標準の「パスワード再設定メール」を送るだけで、新しいパスワードが
 //   何になるかはこのアプリのどこにも残らない（本人だけがメール経由で設定する）。
-//   ・requestPasswordReset：ログイン画面から本人が申請する場合
+//   ・requestPasswordReset：ログイン画面から本人が申請する場合（CAPTCHA対応）
 //   ・sendMemberPasswordReset：メンバー管理画面からオーナー・管理者が代理で送る場合
+//     （画面上にCAPTCHAが無いため、captchaTokenは渡さない。Supabase側で
+//      CAPTCHA保護を有効にした場合、この代理送信が失敗する可能性があるので、
+//      有効化後は必ずこの機能も動作確認すること）
 // ---------------------------------------------------------------------------
-async function sendResetEmail(email: string) {
+async function sendResetEmail(email: string, captchaToken?: string) {
   const h = await headers();
   const host = h.get("host");
   const origin = host ? `https://${host}` : undefined;
@@ -495,17 +508,18 @@ async function sendResetEmail(email: string) {
   const supabase = await createClient();
   const { error } = await supabase.auth.resetPasswordForEmail(email, {
     redirectTo: origin ? `${origin}/auth/confirm?next=/set-password` : undefined,
+    captchaToken,
   });
   if (error) throw new Error(error.message);
 }
 
-export async function requestPasswordReset(email: string) {
+export async function requestPasswordReset(email: string, captchaToken?: string) {
   const cleanEmail = email.trim().toLowerCase();
   if (!cleanEmail || !cleanEmail.includes("@")) {
     throw new Error("正しいメールアドレスを入力してください。");
   }
   // 登録の有無にかかわらず同じ結果を返す（メールアドレスの存在有無を外部に漏らさないため）
-  await sendResetEmail(cleanEmail);
+  await sendResetEmail(cleanEmail, captchaToken);
 }
 
 export async function sendMemberPasswordReset(memberId: string) {

@@ -1,12 +1,14 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
 import Link from "next/link";
 import { signIn } from "@/app/actions";
 import { btnPrimaryCls, errorCls, inputCls } from "@/lib/ui";
+import TurnstileWidget from "@/components/TurnstileWidget";
 
 export default function LoginPage() {
   const [state, formAction, pending] = useActionState(signIn, undefined);
+  const [captchaToken, setCaptchaToken] = useState<string | null>(null);
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-orange-50 via-white to-amber-50 px-4">
@@ -37,6 +39,9 @@ export default function LoginPage() {
               className={inputCls}
             />
           </label>
+
+          <TurnstileWidget onToken={setCaptchaToken} />
+          <input type="hidden" name="captchaToken" value={captchaToken ?? ""} />
 
           {state?.error && <p className={errorCls}>{state.error}</p>}
 
