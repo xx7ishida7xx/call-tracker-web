@@ -136,10 +136,13 @@ mainブランチに反映済みであることを確認済み。
       （1）管理者・オーナー・ゲスト全ロールで普通にログインできること、
       （2）ゲスト会社のアカウントで他のゲスト会社のメンバーが見えないこと
       の両方を確認する
-- [ ] Supabase ダッシュボード → Authentication → Email Templates の
+- [x] Supabase ダッシュボード → Authentication → Email Templates の
       「Invite user」「Reset Password」で、`{{ .ConfirmationURL }}` ではなく
       `/auth/confirm?token_hash=...&type=...&next=/set-password` を使った
-      カスタムリンクになっているか（過去に依頼済みだが未確認）
+      カスタムリンクになっているか
+      → 2026-10-02 に両方とも確認、設定済みだった。
+      Invite user: `{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=invite&next=/set-password`
+      Reset password: `{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=recovery&next=/set-password`
 - [x] Supabase ダッシュボード → Authentication → Sessions で、
       「Time-box user sessions」「Inactivity timeout」が 8 hours に設定されているか
       → 2026-10-02 に確認・設定完了（以前は両方とも 0 = never になっていたため、
