@@ -149,11 +149,95 @@ mainブランチに反映済みであることを確認済み。
   「Enforce single session per user」を有効化（同じアカウントの同時使用を防ぐ）、
   Authentication → Attack Protection の確認・有効化（ログイン試行のボット対策、
   漏洩済みパスワードの使用禁止）、管理者・オーナーアカウントへのMFA
-  （多要素認証）の導入。いずれもSupabaseダッシュボード側の設定のみで完結する想定
+  （多要素認証）の導入。
+  （下の「まだ確認・完了できていない項目」参照）。
+
+### CAPTCHA保護の導入（2026-10-02）
+
+Attack Protectionの「Enable Captcha protection」について、ヒロさんに相談した結果、
+「導入する（推奨）」を選択。ただし、これまでの設定（セッションタイムアウト等）と違い、
+Supabase側のスイッチだけでなく、ログイン画面側にもコード変更が必要なため、下記を実装済み。
+
+- 提供元はCloudflare Turnstile（無料・利用者の操作がほぼ不要）を想定。
+- `components/TurnstileWidget.tsx`（新規）：Turnstileのスクリプトを読み込み、
+  ウィジェットを表示する共通コンポーネント。環境変数
+  `NEXT_PUBLIC_TURNSTILE_SITE_KEY`（Vercelの環境変数）が未設定の間は何も表示せず、
+  従来通りCAPTCHA無しで動作する（＝今回のコードをアップロードしただけでは
+  何も変わらず、安全に反映できる）。
+- `app/login/page.tsx`：ログインフォームにウィジェットを追加し、取得したトークンを
+  隠しフィールド`captchaToken`としてフォームに含める。
+- `app/forgot-password/page.tsx`：同様にウィジェットを追加。
+- `app/actions.ts`：`signIn`・`requestPasswordReset`・`sendResetEmail`が
+  `captchaToken`をSupabaseに渡すように変更。CAPTCHA関連のエラー時は
+  「ボット確認の読み込みに時間がかかっています…」という案内に変える。
+
+**既知の注意点（ヒロさんに説明済み・了承済み）**：
+`sendMemberPasswordReset`（メンバー管理画面からオーナー・管理者が代理でパスワード
+リセットメールを送る機能）は、画面上にCAPTCHA入力が無いため`captchaToken`を渡せない。
+SupabaseのCAPTCHA保護を有効化すると、この代理送信機能が「captcha verification
+process failed」のようなエラーで失敗する可能性がある（Supabase側の`/recover`
+エンドポイントは呼び出し元を問わずCAPTCHAトークンを要求するため）。
+
+**反映の流れ（実施済み）**：
+1. ヒロさんがCloudflare Turnstileで無料アカウントを作成し、Site Key・Secret Keyを取得 → 完了
+2. Site KeyをVercelの環境変数`NEXT_PUBLIC_TURNSTILE_SITE_KEY`に設定（Type: Config） → 完了
+3. コード一式（`components/TurnstileWidget.tsx`、`app/login/page.tsx`、
+   `app/forgot-password/page.tsx`、`app/actions.ts`）をGitHubにアップロード → 完了
+4. 本番サイトでログイン画面にCAPTCHAウィジェットが表示され、問題なくログインできることを確認 → 完了（2026-10-02）
+5. Supabase ダッシュボード → Authentication → Attack Protection →
+   「Enable Captcha protection」をON、プロバイダをTurnstile、Secret Keyを入力してSave → 完了（2026-10-02）
+
+**反映後に見つかった課題（2026-10-02、まだ未解決）**：
+- `sendMemberPasswordReset`（メンバー管理画面からの代理パスワードリセット）は、
+  想定通り失敗するようになった（画面上に「Minified React error #441」という
+  汎用エラーが表示される。本体は「サーバー側の処理でエラー」という意味で、
+  実際の原因はCAPTCHAトークン無しで`/recover`を呼んでいるため）。
+  → ヒロさんと相談し、**Resend（メール配信サービス、無料枠で月3,000通・1日100通まで）を
+  導入して完全自動化する方針**に決定。ただし「一旦後回しにしましょう」とのことで、
+  今は保留中。対応内容の想定：Admin API（`generateLink`、CAPTCHA対象外）でリンクを
+  発行し、Resend経由でそのリンクを含むメールを自動送信するよう`sendMemberPasswordReset`を
+  書き換える。作業には、ヒロさん側でのResendアカウント作成・送信ドメインのDNS認証設定
+  （ドメイン管理画面でのレコード追加）が必要になる。
+- 「パスワードをお忘れですか？」のリンクを押しても`/forgot-password`画面に
+  遷移しない（押しても何も起きないように見える）という不具合が報告され、調査の結果、
+  CAPTCHA対応とは無関係の**既存の別バグ**と判明した。原因：`proxy.ts`の
+  未ログインアクセス許可リスト（`isAuthRoute`）に`/forgot-password`が含まれておらず、
+  未ログイン状態でこの画面にアクセスすると、ミドルウェアによって即座に`/login`へ
+  強制的に戻されてしまっていた（ログイン状態が残っているブラウザでは再現しないため、
+  これまで見逃されていた）。`proxy.ts`の`isAuthRoute`判定に
+  `path.startsWith("/forgot-password")`を追加して修正。
+  2026-10-02 作成・お渡し済み。本番環境への反映・動作確認まで完了（ヒロさん確認済み）。
+
+## リードステータスの見直し（2026-10-02、ヒロさんからのご依頼）
+
+ヒロさんから「リード情報のステータスを一部自動化したい。通話記録と連動する形にしたい」との
+ご依頼があり、以下の内容で対応した。
+
+- ステータスに追加：BK・コールアウト・見込み・前確待ち・前確NG
+- ステータスから廃止：見送り
+- 通話結果とステータスの自動連動（`lib/types.ts` の `CALL_RESULT_OUTCOME`）を、
+  ヒロさんの指定どおりに変更：
+  - つながらなかった：留守→架電中／廃業→対象外（変更なし）／再コール→架電中
+  - つながった：フロントNG・代表NG・追わない→コールアウト／再コール→見込み／
+    前確依頼→前確待ち／前確NG→前確NG／アポ成立→アポ獲得（変更なし）
+  - その他：結果待ち→変更なし（従来通り）／キャンセル→コールアウト
+  - 訪問結果：受注→成約（変更なし）／追客・検討・第三者商談・先々→変更なし／
+    失注→コールアウト／**BK（新しい通話結果として追加）→BK**
+- 既存のDBデータで既に`status = '見送り'`になっているリードは、migration 0019で
+  一括して「コールアウト」に変更する（ヒロさんのご指示）。
+- 変更したファイル：`lib/types.ts`（LEAD_STATUSES、CALL_RESULT_GROUPS、
+  CALL_RESULT_OUTCOME）、`lib/ui.ts`（STATUS_BADGE_CLSに新ステータスの配色を追加）、
+  `supabase/migrations/0019_lead_status_rework.sql`（既存データの一括変更）。
+  `tsc --noEmit`・`eslint`・`next build` いずれも問題なし。
+- 2026-10-02 作成・お渡し済み。本番への反映・動作確認はこれから
   （下の「まだ確認・完了できていない項目」参照）。
 
 ## まだ確認・完了できていない項目
 
+- [x] `proxy.ts`の修正（「パスワードをお忘れですか？」リンクが機能しない不具合の修正）を
+      GitHubにアップロードし、未ログイン状態でリンクから`/forgot-password`画面に
+      遷移できることを確認する
+      → 2026-10-02 完了。ヒロさんが本番環境で動作確認済み（「出来た！」「出来たよ」）
 - [ ] migration 0018（ゲストアカウントの自動ツール対策・簡易レート制限）を
       SupabaseのSQL Editorで実行し、GitHubにもコード一式
       （lib/rateLimit.ts、app/(app)/leads/page.tsx、app/(app)/leads/[id]/page.tsx）を
@@ -162,8 +246,26 @@ mainブランチに反映済みであることを確認済み。
       （2026-10-02 作成・お渡し済み）
 - [ ] Supabase ダッシュボード → Authentication → Sessions →
       「Enforce single session per user」を有効化する
-- [ ] Supabase ダッシュボード → Authentication → Attack Protection の内容を確認し、
-      ボット対策（CAPTCHA）・漏洩済みパスワードの使用禁止などを有効化する
+      → 2026-10-02、ヒロさんが画面上でトグルをONにしたのを確認。Saveボタンを
+      押して保存できたかの最終確認がまだ（スクリーンショットではON表示のみ確認）
+- [ ] Supabase ダッシュボード → Authentication → Attack Protection →
+      「Configure in email provider」内の「Prevent use of leaked passwords」
+      「Minimum password length」（8）「Require current password when updating」
+      を有効化する
+      → 2026-10-02、ヒロさんが画面上で3つともONにしたのを確認。Saveボタンを
+      押して保存できたかの最終確認がまだ
+- [x] Supabase ダッシュボード → Authentication → Attack Protection →
+      「Enable Captcha protection」（Cloudflare Turnstile）を有効化する
+      → 2026-10-02 完了。詳細・残課題は下の「CAPTCHA保護の導入（2026-10-02）」を参照
+- [ ] リードステータスの見直し（BK・コールアウト・見込み・前確待ち・前確NGの追加、
+      見送りの廃止、通話結果との自動連動の変更）を、SupabaseのSQL Editorで
+      migration 0019を実行し、GitHubにもコード（lib/types.ts、lib/ui.ts）を
+      アップロードする。反映後、リード詳細画面でステータスの選択肢が新しい内容に
+      なっていること、通話結果を選ぶとステータスが意図通り連動すること、
+      既存の「見送り」リードが「コールアウト」に変わっていることを確認する
+      （2026-10-02 作成・お渡し済み）
+- [ ] メンバー管理画面からの代理パスワードリセットの自動化をResend経由に
+      切り替える（2026-10-02、ヒロさんの意向で方針決定・実施は保留中）
 - [ ] Supabase ダッシュボード → Authentication → Multi-Factor（MFA）を、
       少なくとも管理者・オーナーのアカウントに設定する
 - [ ] migration 0017（通話記録を削除した際に、リードの「最終架電」などが

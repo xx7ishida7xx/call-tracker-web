@@ -180,30 +180,37 @@ export const CALL_RESULT_GROUPS: Record<CallResultGroup, readonly string[]> = {
   つながらなかった: ["留守", "廃業", "再コール"],
   つながった: ["フロントNG", "代表NG", "追わない", "再コール", "前確依頼", "前確NG", "アポ成立"],
   その他: ["結果待ち", "キャンセル"],
-  訪問結果: ["受注", "追客", "検討", "第三者商談", "先々", "失注"],
+  訪問結果: ["受注", "追客", "検討", "第三者商談", "先々", "失注", "BK"],
 };
 
 // 「つながらなかった」の再コールと「つながった」の再コールは、表示は同じ「再コール」だが
 // グループが違うため別物として区別して保存・連動される（result_group列で区別する）。
 // nextStatus が null の場合は「ステータスは変更しない」を意味する。
+//
+// ステータス自動連動（2026-10-02 見直し）：
+//   つながらなかった：留守→架電中／廃業→対象外／再コール→架電中
+//   つながった：フロントNG・代表NG・追わない→コールアウト／再コール→見込み／
+//              前確依頼→前確待ち／前確NG→前確NG／アポ成立→アポ獲得
+//   その他：結果待ち→変更なし／キャンセル→コールアウト
+//   訪問結果：受注→成約／追客・検討・第三者商談・先々→変更なし／失注→コールアウト／BK→BK
 export const CALL_RESULT_OUTCOME: Record<CallResultGroup, Record<string, CallOutcome>> = {
   つながらなかった: {
-    留守: { connected: false, appointment: false, nextStatus: null },
+    留守: { connected: false, appointment: false, nextStatus: "架電中" },
     廃業: { connected: false, appointment: false, nextStatus: "対象外" },
-    再コール: { connected: false, appointment: false, nextStatus: null },
+    再コール: { connected: false, appointment: false, nextStatus: "架電中" },
   },
   つながった: {
-    フロントNG: { connected: true, appointment: false, nextStatus: "見送り" },
-    代表NG: { connected: true, appointment: false, nextStatus: "見送り" },
-    追わない: { connected: true, appointment: false, nextStatus: "見送り" },
-    再コール: { connected: true, appointment: false, nextStatus: null },
-    前確依頼: { connected: true, appointment: false, nextStatus: null },
-    前確NG: { connected: true, appointment: false, nextStatus: "見送り" },
+    フロントNG: { connected: true, appointment: false, nextStatus: "コールアウト" },
+    代表NG: { connected: true, appointment: false, nextStatus: "コールアウト" },
+    追わない: { connected: true, appointment: false, nextStatus: "コールアウト" },
+    再コール: { connected: true, appointment: false, nextStatus: "見込み" },
+    前確依頼: { connected: true, appointment: false, nextStatus: "前確待ち" },
+    前確NG: { connected: true, appointment: false, nextStatus: "前確NG" },
     アポ成立: { connected: true, appointment: true, nextStatus: "アポ獲得" },
   },
   その他: {
     結果待ち: { connected: false, appointment: false, nextStatus: null },
-    キャンセル: { connected: false, appointment: false, nextStatus: "見送り" },
+    キャンセル: { connected: false, appointment: false, nextStatus: "コールアウト" },
   },
   訪問結果: {
     受注: { connected: true, appointment: false, nextStatus: "成約" },
@@ -211,7 +218,8 @@ export const CALL_RESULT_OUTCOME: Record<CallResultGroup, Record<string, CallOut
     検討: { connected: true, appointment: false, nextStatus: null },
     第三者商談: { connected: true, appointment: false, nextStatus: null },
     先々: { connected: true, appointment: false, nextStatus: null },
-    失注: { connected: true, appointment: false, nextStatus: "見送り" },
+    失注: { connected: true, appointment: false, nextStatus: "コールアウト" },
+    BK: { connected: true, appointment: false, nextStatus: "BK" },
   },
 };
 
@@ -235,9 +243,13 @@ export const CALL_RESULT_FLAT_OPTIONS: string[] = Array.from(
 export const LEAD_STATUSES = [
   "未着手",
   "架電中",
+  "見込み",
+  "前確待ち",
+  "前確NG",
   "アポ獲得",
   "成約",
-  "見送り",
+  "コールアウト",
+  "BK",
   "対象外",
   "アポ禁",
 ] as const;

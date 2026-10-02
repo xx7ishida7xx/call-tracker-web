@@ -41,9 +41,13 @@ export const successCls = "rounded-lg border border-emerald-100 bg-emerald-50 px
 export const STATUS_BADGE_CLS: Record<string, string> = {
   未着手: "bg-slate-100 text-slate-600",
   架電中: "bg-sky-100 text-sky-700",
+  見込み: "bg-teal-100 text-teal-700",
+  前確待ち: "bg-indigo-100 text-indigo-700",
+  前確NG: "bg-pink-100 text-pink-700",
   アポ獲得: "bg-amber-100 text-amber-800",
   成約: "bg-emerald-100 text-emerald-700",
-  見送り: "bg-slate-100 text-slate-500",
+  コールアウト: "bg-slate-100 text-slate-500",
+  BK: "bg-violet-100 text-violet-700",
   対象外: "bg-rose-100 text-rose-600",
   アポ禁: "bg-slate-800 text-white",
 };
