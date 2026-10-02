@@ -73,8 +73,6 @@ export default function MultiSelectFilter({
               >
                 <input
                   type="checkbox"
-                  name={name}
-                  value={opt}
                   checked={checkedValues.includes(opt)}
                   onChange={(e) => toggleValue(opt, e.target.checked)}
                   className="rounded border-slate-300 text-orange-600 focus:ring-orange-500"
@@ -85,6 +83,21 @@ export default function MultiSelectFilter({
           </div>
         )}
       </div>
+      {/*
+        実際にフォーム送信で使われる値は、ここの隠しinputが担っている
+        （上のチェックボックス自体は name を持たせていない）。
+        ドロップダウンを閉じる（open=falseになる）と、上のチェックボックスの
+        <input> 要素はDOMから消えてしまうため、もしチェックボックス側に
+        name/value を持たせていると、「チェックを入れてからドロップダウンを
+        閉じて検索ボタンを押す」という普通の操作をした瞬間に、そのチェック内容が
+        フォーム送信に含まれなくなり、絞り込みが効かなくなってしまっていた
+        （実際にこの不具合が発生し、都道府県・業種などで絞り込めない原因になっていた）。
+        選択状態（checkedValues）はReactのstateとして開閉に関わらず保持されるため、
+        常にDOMに存在するこの隠しinputで、選択中の値を確実に送信する。
+      */}
+      {checkedValues.map((v) => (
+        <input key={v} type="hidden" name={name} value={v} />
+      ))}
     </div>
   );
 }
