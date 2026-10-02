@@ -15,16 +15,28 @@ import { companyLabel, type Company } from "@/lib/companies";
 import { formatDateTime } from "@/lib/format";
 import { btnPrimaryCls, btnSecondarySmCls, cardCls, errorCls, inputCls, sectionTitleCls, successCls } from "@/lib/ui";
 
+// ゲストアカウントの簡易レート制限（migration 0018）で、実際にアクセス集中として
+// ブロックされた記録のまとめ（誰が・どのページで・何回・最後にいつ）
+export type RateLimitAlert = {
+  profileId: string;
+  name: string;
+  route: string;
+  count: number;
+  lastAt: string;
+};
+
 export default function MembersClient({
   me,
   roster,
   lastSignIns,
   companies,
+  rateLimitAlerts,
 }: {
   me: Profile;
   roster: Profile[];
   lastSignIns: Record<string, string | null>;
   companies: Company[];
+  rateLimitAlerts: RateLimitAlert[];
 }) {
   const [companyList, setCompanyList] = useState<Company[]>(companies);
 
@@ -38,6 +50,40 @@ export default function MembersClient({
             : "管理者として、自分自身と、管理者・オーナー以外のメンバーの表示名・ロール・所属会社を変更できます。"}
         </p>
       </div>
+
+      {rateLimitAlerts.length > 0 && (
+        <div className={`${cardCls} border-red-200 bg-red-50/60 p-4`}>
+          <h2 className="text-sm font-bold text-red-700">
+            ⚠ アクセス集中の検知（直近14日間）
+          </h2>
+          <p className="mt-1 text-xs text-red-600">
+            ゲストアカウントが、短時間に通常の利用では考えにくい回数アクセスしたため、一時的に表示を制限した記録です。
+            自動ツールなどでの大量アクセスの可能性があります。心当たりがない場合は、該当アカウントにご確認ください。
+          </p>
+          <div className="mt-3 overflow-x-auto">
+            <table className="w-full min-w-[640px] text-sm">
+              <thead>
+                <tr className="border-b border-red-100 text-left text-xs font-semibold text-red-700">
+                  <th className="py-1.5 pr-4">アカウント</th>
+                  <th className="py-1.5 pr-4">ページ</th>
+                  <th className="py-1.5 pr-4">検知回数</th>
+                  <th className="py-1.5 pr-4">最終検知日時</th>
+                </tr>
+              </thead>
+              <tbody>
+                {rateLimitAlerts.map((a) => (
+                  <tr key={`${a.profileId}:${a.route}`} className="border-b border-red-100/60 text-slate-700 last:border-0">
+                    <td className="py-1.5 pr-4">{a.name}</td>
+                    <td className="py-1.5 pr-4">{a.route}</td>
+                    <td className="py-1.5 pr-4">{a.count} 回</td>
+                    <td className="py-1.5 pr-4">{formatDateTime(a.lastAt)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
 
       <CompaniesManager companies={companyList} onChange={setCompanyList} />
 

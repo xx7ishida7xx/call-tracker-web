@@ -1,13 +1,20 @@
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentProfile } from "@/lib/auth";
-import { canManageMembers, nameFor, type Lead, type LeadAttachment, type Profile, type Call } from "@/lib/types";
+import { canManageMembers, isGuestRole, nameFor, type Lead, type LeadAttachment, type Profile, type Call } from "@/lib/types";
 import { getAdjacentLeadIds, searchParamsToQueryString, type LeadSearchParams } from "@/lib/leadsFilter";
+import { checkGuestRateLimit } from "@/lib/rateLimit";
+import { cardCls, errorCls } from "@/lib/ui";
 import LeadDetailClient, { type LeadAttachmentView } from "./LeadDetailClient";
 
 // 添付ファイルのダウンロードリンクは、非公開バケットなので毎回署名付きURLを発行する
 // （有効期限1時間。期限が切れてもページを開き直せば新しいURLが発行される）
 const ATTACHMENT_SIGNED_URL_TTL_SECONDS = 60 * 60;
+
+// ゲスト（販売店）アカウントが自動ツールなどでリード詳細を次々と大量に開いてくる
+// 場合のしきい値。架電中に「次へ」で素早く送っていく通常利用は妨げない程度に
+// 一覧ページより緩めにしている。
+const GUEST_RATE_LIMIT = { windowSeconds: 60, maxRequests: 80 };
 
 export default async function LeadDetailPage({
   params,
@@ -21,6 +28,22 @@ export default async function LeadDetailPage({
   const supabase = await createClient();
   const me = await getCurrentProfile();
   if (!me) return null;
+
+  // ゲスト（販売店）アカウントによる自動ツールでの大量アクセスを防ぐための
+  // 簡易レート制限（社内メンバーには影響しない）
+  if (isGuestRole(me.role)) {
+    const ok = await checkGuestRateLimit(supabase, "lead_detail", GUEST_RATE_LIMIT);
+    if (!ok) {
+      return (
+        <div className={`max-w-lg p-6 ${cardCls}`}>
+          <p className={errorCls}>
+            アクセスが集中しているため、一時的にリード詳細の表示を制限しています。
+            少し時間をおいてから、もう一度お試しください。
+          </p>
+        </div>
+      );
+    }
+  }
 
   const { data: lead } = await supabase.from("leads").select("*").eq("id", id).maybeSingle();
   if (!lead) notFound();

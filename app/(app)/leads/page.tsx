@@ -13,10 +13,12 @@ import {
   ACQUISITION_DESIRE_LABEL,
   APO_KIN_STATUS,
   canManageMembers,
+  isGuestRole,
   type Profile,
 } from "@/lib/types";
 import { formatDate, formatDateTime } from "@/lib/format";
 import { applyLeadFilters, getCallFilteredLeadIds, type LeadSearchParams } from "@/lib/leadsFilter";
+import { checkGuestRateLimit } from "@/lib/rateLimit";
 import AssigneeCell from "./AssigneeCell";
 import MultiSelectFilter from "./MultiSelectFilter";
 import {
@@ -24,11 +26,16 @@ import {
   btnPrimaryCls,
   btnSecondarySmCls,
   cardCls,
+  errorCls,
   inputCls,
   statChipCls,
   statChipLabelCls,
   statusBadgeCls,
 } from "@/lib/ui";
+
+// ゲスト（販売店）アカウントが自動ツールなどで短時間に大量アクセスしてきた場合の
+// しきい値。人間の通常操作では到達しない程度に余裕を持たせている。
+const GUEST_RATE_LIMIT = { windowSeconds: 60, maxRequests: 40 };
 
 const PAGE_SIZE = 50;
 
@@ -57,6 +64,22 @@ export default async function LeadsPage({ searchParams }: { searchParams: Promis
   const me = await getCurrentProfile();
   if (!me) return null;
   const canManage = canManageMembers(me);
+
+  // ゲスト（販売店）アカウントによる自動ツールでの大量アクセスを防ぐための
+  // 簡易レート制限（社内メンバーには影響しない）
+  if (isGuestRole(me.role)) {
+    const ok = await checkGuestRateLimit(supabase, "leads_list", GUEST_RATE_LIMIT);
+    if (!ok) {
+      return (
+        <div className={`max-w-lg p-6 ${cardCls}`}>
+          <p className={errorCls}>
+            アクセスが集中しているため、一時的にリード一覧の表示を制限しています。
+            少し時間をおいてから、もう一度お試しください。
+          </p>
+        </div>
+      );
+    }
+  }
 
   // 業種・都道府県・参照元・ランクは複数選択できるようにしているため、常に配列として扱う
   const genreList = Array.isArray(sp.genre) ? sp.genre : sp.genre ? [sp.genre] : [];
