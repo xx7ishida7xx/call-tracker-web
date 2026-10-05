@@ -75,9 +75,16 @@ export async function addCall(
   const me = await getCurrentProfile();
   if (!me) throw new Error("ログインが必要です。");
 
+  // この通話を記録する直前のリードのステータスを控えておく。あとでこの通話記録を
+  // 削除したときに、ステータスを「この通話を記録する前」の状態に自動で戻すために使う
+  // （calls.status_before / status_after。migration 0024）。
+  const { data: leadBefore } = await supabase.from("leads").select("status").eq("id", leadId).maybeSingle();
+
   const { error: callError } = await supabase.from("calls").insert({
     lead_id: leadId,
     caller_id: me.id,
+    status_before: leadBefore?.status ?? null,
+    status_after: payload.next_status,
     result: payload.result,
     result_group: payload.result_group,
     notes: payload.notes,
@@ -197,16 +204,45 @@ export async function deleteCall(callId: string) {
   const me = await getCurrentProfile();
   if (!me) throw new Error("ログインが必要です。");
 
-  const { data: existing } = await supabase.from("calls").select("id, lead_id, caller_id").eq("id", callId).maybeSingle();
+  const { data: existing } = await supabase
+    .from("calls")
+    .select("id, lead_id, caller_id, called_at, status_before, status_after")
+    .eq("id", callId)
+    .maybeSingle();
   if (!existing) throw new Error("通話記録が見つかりませんでした。");
   if (!(me.is_owner || me.role === "admin" || existing.caller_id === me.id)) {
     throw new Error("この通話記録を削除する権限がありません。");
   }
 
+  // 削除する通話が、そのリードの「一番新しい通話」かどうか（削除前に調べる）。
+  // 古い通話を削除した場合は、ステータスは触らない。
+  const { count: newerCount } = await supabase
+    .from("calls")
+    .select("id", { count: "exact", head: true })
+    .eq("lead_id", existing.lead_id)
+    .gt("called_at", existing.called_at);
+  const wasLatest = (newerCount ?? 0) === 0;
+
   const { error } = await supabase.from("calls").delete().eq("id", callId);
   if (error) throw new Error(error.message);
 
   await syncLeadFromLatestCall(supabase, existing.lead_id);
+
+  // ステータスの自動復元：一番新しい通話を削除した場合に、リードのステータスを
+  // 「その通話を記録する前」の状態に戻す。ただし、通話を記録したあとにステータスを
+  // 手動で変更していた場合（今のステータスが、その通話が設定した値と違う場合）は、
+  // 手動の変更を尊重して何もしない。migration 0024 より前の通話記録
+  // （status_before / status_after が空）も何もしない。
+  if (wasLatest && existing.status_before && existing.status_after) {
+    const { data: leadNow } = await supabase.from("leads").select("status").eq("id", existing.lead_id).maybeSingle();
+    if (leadNow && leadNow.status === existing.status_after && leadNow.status !== existing.status_before) {
+      const { error: restoreError } = await supabase
+        .from("leads")
+        .update({ status: existing.status_before })
+        .eq("id", existing.lead_id);
+      if (restoreError) throw new Error(restoreError.message);
+    }
+  }
 
   revalidatePath(`/leads/${existing.lead_id}`);
 }
