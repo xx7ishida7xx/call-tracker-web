@@ -37,6 +37,8 @@ export default function ImportClient({ me, roster }: { me: Profile; roster: Prof
   const fileRef = useRef<HTMLInputElement>(null);
   const [fileName, setFileName] = useState("");
   const [assignTo, setAssignTo] = useState("");
+  // 更新インポートで、リード側がすでに埋まっている項目もCSVの値で上書きするか（既定：しない＝空欄だけ埋める）
+  const [overwrite, setOverwrite] = useState(false);
   const [isPending, startTransition] = useTransition();
   const [importResult, setImportResult] = useState<ImportResult | null>(null);
   const [updateResult, setUpdateResult] = useState<UpdateResult | null>(null);
@@ -67,7 +69,7 @@ export default function ImportClient({ me, roster }: { me: Profile; roster: Prof
             const r = await importLeadsCsv(text, assignTo || null);
             setImportResult(r);
           } else {
-            const r = await updateLeadsCsv(text);
+            const r = await updateLeadsCsv(text, overwrite);
             setUpdateResult(r);
           }
           if (fileRef.current) fileRef.current.value = "";
@@ -130,10 +132,32 @@ export default function ImportClient({ me, roster }: { me: Profile; roster: Prof
           </p>
         ) : (
           <p className="text-xs text-slate-500">
-            「①」でエクスポートしたCSVの一部を直して、既存のリードの中身を更新します。<b>電話番号が一致した行だけ</b>
-            が対象で、一致しない行（新しいリード）は何も登録されません。<b>空欄のセルは「変更しない」</b>
-            として扱われるので、触っていない列はそのまま残ります。会社名・住所などの誤り修正や、担当者欄を埋めての割り振りに使えます。
+            既存のリードの中身を、CSVの内容で更新します。<b>電話番号が一致した行だけ</b>
+            が対象で、一致しない行（新しいリード）は何も登録されません。<b>CSVの空欄のセルは「変更しない」</b>
+            として扱われるので、触っていない列はそのまま残ります。
           </p>
+        )}
+        {mode === "update" && (
+          <div className="flex flex-col gap-1.5 rounded-lg border border-slate-200 bg-slate-50/60 px-3 py-2 text-sm text-slate-700">
+            <label className="flex items-start gap-2">
+              <input type="radio" name="overwrite" checked={!overwrite} onChange={() => setOverwrite(false)} className="mt-1" />
+              <span>
+                <b>空欄だけ埋める（おすすめ）</b>
+                <span className="block text-xs text-slate-500">
+                  リードの項目がすでに入力済みなら、そのまま残します。画面で手直しした内容を守りたいときや、外部のリストで足りない項目だけ補いたいときに使います。
+                </span>
+              </span>
+            </label>
+            <label className="flex items-start gap-2">
+              <input type="radio" name="overwrite" checked={overwrite} onChange={() => setOverwrite(true)} className="mt-1" />
+              <span>
+                <b>入力済みの項目も上書きする</b>
+                <span className="block text-xs text-slate-500">
+                  エクスポートしたCSVの誤りを直して読み込み直すときなど、CSVの内容を正として置き換えたいときに使います。画面で手直しした内容も、CSVの値で上書きされます。
+                </span>
+              </span>
+            </label>
+          </div>
         )}
 
         {(me.role === "admin" || me.role === "teamlead") && (

@@ -811,9 +811,13 @@ export async function importLeadsCsv(csvText: string, assignTo: string | null) {
 // 新しいリードを追加するためのものではなく、既存のリードの中身
 // （会社名・住所などの誤り修正、担当者の割り振りなど）を直すためのもの。
 //   ・電話番号が一致した既存のリードだけを対象にする（一致しない行は何もしない＝新規追加はしない）
-//   ・CSVの空欄セルは「変更しない」として扱う（埋まっている列だけ上書きする）
+//   ・CSVの空欄セルは「変更しない」として扱う
+//   ・overwrite = false（既定）：リード側がすでに埋まっている項目は上書きせず、
+//     空欄の項目だけをCSVの値で補う（画面で手直しした内容を守るため）
+//   ・overwrite = true：CSVに値がある項目は、リード側が埋まっていても上書きする
+//     （エクスポートしたCSVの誤りを直して読み込み直す用途）
 //   ・同じ電話番号の既存リードが複数ある場合は、誤って別の行を更新しないよう対象外にする
-export async function updateLeadsCsv(csvText: string) {
+export async function updateLeadsCsv(csvText: string, overwrite = false) {
   const supabase = await createClient();
   const me = await getCurrentProfile();
   if (!me) throw new Error("ログインが必要です。");
@@ -853,14 +857,31 @@ export async function updateLeadsCsv(csvText: string) {
   // （同じ電話番号の行が複数あれば「ambiguous」として更新対象から外す）
   const phones = Array.from(new Set(rows.map((r) => r.phone)));
   const idsByPhone = new Map<string, string[]>();
+  type ExistingLeadForUpdate = {
+    id: string;
+    phone: string;
+    company: string | null;
+    pref: string | null;
+    address: string | null;
+    email: string | null;
+    url: string | null;
+    cms: string | null;
+    genre: string | null;
+    subgenre: string | null;
+  };
+  const existingById = new Map<string, ExistingLeadForUpdate>();
   const LOOKUP_CHUNK = 500;
   for (let i = 0; i < phones.length; i += LOOKUP_CHUNK) {
     const chunk = phones.slice(i, i + LOOKUP_CHUNK);
-    const { data } = await supabase.from("leads").select("id, phone").in("phone", chunk);
-    for (const row of (data as { id: string; phone: string }[]) ?? []) {
+    const { data } = await supabase
+      .from("leads")
+      .select("id, phone, company, pref, address, email, url, cms, genre, subgenre")
+      .in("phone", chunk);
+    for (const row of (data as ExistingLeadForUpdate[]) ?? []) {
       const list = idsByPhone.get(row.phone) ?? [];
       list.push(row.id);
       idsByPhone.set(row.phone, list);
+      existingById.set(row.id, row);
     }
   }
 
@@ -882,14 +903,24 @@ export async function updateLeadsCsv(csvText: string) {
     }
 
     const patch: Record<string, string> = {};
-    if (r.company.trim()) patch.company = r.company;
-    if (r.pref.trim()) patch.pref = r.pref;
-    if (r.address.trim()) patch.address = r.address;
-    if (r.email.trim()) patch.email = r.email;
-    if (r.url.trim()) patch.url = r.url;
-    if (r.cms.trim()) patch.cms = r.cms;
-    if (r.genre.trim()) patch.genre = r.genre;
-    if (r.subgenre.trim()) patch.subgenre = r.subgenre;
+    const existing = existingById.get(ids[0]);
+    // CSVに値があり、かつ（上書きモード、またはリード側がまだ空欄）のときだけ反映する
+    const setField = (
+      key: "company" | "pref" | "address" | "email" | "url" | "cms" | "genre" | "subgenre",
+      value: string
+    ) => {
+      if (!value.trim()) return;
+      if (!overwrite && (existing?.[key] ?? "").trim() !== "") return;
+      patch[key] = value;
+    };
+    setField("company", r.company);
+    setField("pref", r.pref);
+    setField("address", r.address);
+    setField("email", r.email);
+    setField("url", r.url);
+    setField("cms", r.cms);
+    setField("genre", r.genre);
+    setField("subgenre", r.subgenre);
 
     if (r.assignee.trim()) {
       const match = resolveAssigneeMatch(r.assignee, lookup);

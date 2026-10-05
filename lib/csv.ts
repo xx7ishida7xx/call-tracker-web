@@ -68,6 +68,8 @@ const HEADER_ALIASES: Record<string, keyof ParsedLeadRow> = {
   会社名: "company",
   屋号: "company",
   会社名屋号: "company",
+  "会社名/屋号": "company",
+  "会社名／屋号": "company",
   company: "company",
   都道府県: "pref",
   pref: "pref",
