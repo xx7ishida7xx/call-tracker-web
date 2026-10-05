@@ -719,7 +719,13 @@ export default function LeadDetailClient({
         ) : (
           <ul className="flex flex-col divide-y divide-slate-100">
             {calls.map((c) => (
-              <CallHistoryItem key={c.id} call={c} meId={meId} isAdmin={isAdmin} />
+              <CallHistoryItem
+                key={c.id}
+                call={c}
+                meId={meId}
+                isAdmin={isAdmin}
+                onStatusRestored={(status) => setForm((f) => ({ ...f, status }))}
+              />
             ))}
           </ul>
         )}
@@ -872,7 +878,18 @@ function AttachmentGroup({
 
 // 通話履歴の1件分。入力ミスの修正・誤登録の削除ができるよう、編集・削除のUIを持つ。
 // 編集・削除ができるのは、その通話を登録した本人か、管理者・オーナーのみ（サーバー側でも確認する）。
-function CallHistoryItem({ call, meId, isAdmin }: { call: CallWithCaller; meId: string; isAdmin: boolean }) {
+function CallHistoryItem({
+  call,
+  meId,
+  isAdmin,
+  onStatusRestored,
+}: {
+  call: CallWithCaller;
+  meId: string;
+  isAdmin: boolean;
+  // 通話記録の削除でステータスが自動で元に戻ったとき、親画面のステータス欄を更新するための通知
+  onStatusRestored: (status: string) => void;
+}) {
   const canManage = isAdmin || call.caller_id === meId;
   const [editing, setEditing] = useState(false);
   const [isPending, startTransition] = useTransition();
@@ -957,7 +974,8 @@ function CallHistoryItem({ call, meId, isAdmin }: { call: CallWithCaller; meId: 
     setError(null);
     startTransition(async () => {
       try {
-        await deleteCall(call.id);
+        const result = await deleteCall(call.id);
+        if (result?.restoredStatus) onStatusRestored(result.restoredStatus);
       } catch (e) {
         setError(e instanceof Error ? e.message : "削除に失敗しました。");
       }

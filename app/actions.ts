@@ -233,6 +233,7 @@ export async function deleteCall(callId: string) {
   // 手動で変更していた場合（今のステータスが、その通話が設定した値と違う場合）は、
   // 手動の変更を尊重して何もしない。migration 0024 より前の通話記録
   // （status_before / status_after が空）も何もしない。
+  let restoredStatus: string | null = null;
   if (wasLatest && existing.status_before && existing.status_after) {
     const { data: leadNow } = await supabase.from("leads").select("status").eq("id", existing.lead_id).maybeSingle();
     if (leadNow && leadNow.status === existing.status_after && leadNow.status !== existing.status_before) {
@@ -241,10 +242,14 @@ export async function deleteCall(callId: string) {
         .update({ status: existing.status_before })
         .eq("id", existing.lead_id);
       if (restoreError) throw new Error(restoreError.message);
+      restoredStatus = existing.status_before;
     }
   }
 
   revalidatePath(`/leads/${existing.lead_id}`);
+  // 画面側（開いているリード詳細のステータス欄）を、再読み込みなしで更新できるよう、
+  // 自動で戻したステータスを返す（戻さなかった場合は null）。
+  return { restoredStatus };
 }
 
 // ---------------------------------------------------------------------------
