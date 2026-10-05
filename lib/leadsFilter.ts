@@ -131,7 +131,9 @@ export async function getAdjacentLeadIds(
   const callRankList = toList(sp.call_rank);
   const callLeadIds = await getCallFilteredLeadIds(supabase, sp, callRankList);
 
-  let query = supabase.from("leads").select("id").order("created_at", { ascending: false });
+  let query = supabase.from("leads").select("id")
+    .order("created_at", { ascending: false })
+    .order("id", { ascending: false }); // 一覧と同じ並び順（同じ登録日時の並びを固定）
   query = applyLeadFilters(query, sp, genreList, prefList, cmsList, callLeadIds);
 
   const { data } = await query;

@@ -120,6 +120,8 @@ export default async function LeadsPage({ searchParams }: { searchParams: Promis
         { count: "exact" }
       )
       .order("created_at", { ascending: false })
+      // 同じ登録日時のリード（まとめて取り込んだ分）の並び順を固定するため、IDを2番目の基準にする
+      .order("id", { ascending: false })
       .range(from, to);
     query = applyLeadFilters(query, sp, genreList, prefList, cmsList, callLeadIds);
 

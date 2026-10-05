@@ -47,6 +47,8 @@ export async function GET() {
         "company,pref,address,phone,email,url,cms,genre,subgenre,assigned:profiles!leads_assigned_to_fkey(name,display_name,email)"
       )
       .order("created_at", { ascending: true })
+      // 同じ登録日時の行の並びを固定する（1,000件ずつ取得するため、並びが揺れると重複・欠落が起きる）
+      .order("id", { ascending: true })
       .range(from, from + PAGE_SIZE - 1);
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 500 });
