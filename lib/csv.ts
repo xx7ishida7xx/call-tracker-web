@@ -1,3 +1,5 @@
+import { normalizeJpPhone } from "@/lib/phone";
+
 // シンプルな CSV パーサー（ダブルクォート囲み・カンマ/改行を含むフィールドに対応）
 export function parseCsvText(text: string): string[][] {
   const rows: string[][] = [];
@@ -132,6 +134,9 @@ export function parseLeadsCsv(text: string): { rows: ParsedLeadRow[]; unmatchedH
     keyMap.forEach((key, i) => {
       if (key) rec[key] = (cells[i] ?? "").trim();
     });
+    // 電話番号は、市外局番の区切り（ハイフンの位置）を正しい形にそろえる
+    // （重複判定・既存リードとの突き合わせを、表記の違いに左右されないようにするため）
+    rec.phone = normalizeJpPhone(rec.phone);
     if (rec.company || rec.phone || rec.email) rows.push(rec);
   }
   return { rows, unmatchedHeaders };
