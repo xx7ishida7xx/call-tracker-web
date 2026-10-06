@@ -5,6 +5,7 @@ import {
   canManageMembers,
   canManageProfileGoals,
   canViewProfileGoals,
+  manageableProfiles,
   isGuestRole,
   nameFor,
   type Profile,
@@ -20,8 +21,9 @@ import {
   getWorkDayOverrideMap,
   todayKey,
 } from "@/lib/goalsData";
-import { datesInMonth, WEEKDAY_LABELS, weekOfMonth } from "@/lib/workday";
+import { datesInMonth, weekOfMonth } from "@/lib/workday";
 import { saveDailyCallGoals, saveMonthlyGoal } from "@/app/actions";
+import DailyCallGoalsForm from "./DailyCallGoalsForm";
 import {
   btnPrimaryCls,
   btnSecondarySmCls,
@@ -42,7 +44,7 @@ type Scope = {
   profileIds: string[];
   editableProfile: Profile | null;
   // このスコープが「ゲストのみ」で構成されているか。ゲストのみの場合、稼働日の判定で
-  // 会社全体の登録は反映させない(個人の登録・既定値のみで判定する)。
+  // 会社全体の登録は反映させない（個人の登録・既定値のみで判定する）。
   guestOnly: boolean;
 };
 
@@ -60,11 +62,11 @@ function resolveScope(scopeParam: string | undefined, me: Profile, roster: Profi
     if (canSeeOrg) {
       const members = roster.filter((p) => p.org_name === key);
       if (members.length > 0) {
-        // org_name は社内メンバー(ミライアゴーゴー)にもゲスト会社にも設定されるため、
+        // org_name は社内メンバー（ミライアゴーゴー）にもゲスト会社にも設定されるため、
         // この会社の全員がゲストロールのときだけ「ゲストのみ」として扱う。
         return {
           kind: "org",
-          label: `${key}(全体)`,
+          label: `${key}（全体）`,
           profileIds: members.map((p) => p.id),
           editableProfile: null,
           guestOnly: members.every((p) => isGuestRole(p.role)),
@@ -100,7 +102,7 @@ function resolveScope(scopeParam: string | undefined, me: Profile, roster: Profi
     }
   }
 
-  // 既定値:管理者は全社、チームリーダー系は自分のチーム、それ以外は自分自身
+  // 既定値：管理者は全社、チームリーダー系は自分のチーム、それ以外は自分自身
   if (canManageMembers(me)) {
     return { kind: "all", label: "全社", profileIds: roster.map((p) => p.id), editableProfile: null, guestOnly: false };
   }
@@ -176,7 +178,7 @@ export default async function GoalsPage({
   } else if (me.org_name) {
     overallItems.push({
       href: hrefFor(`org:${me.org_name}`),
-      label: `${me.org_name}(全体)`,
+      label: `${me.org_name}（全体）`,
       active: isActive(`org:${me.org_name}`),
     });
   }
@@ -200,6 +202,7 @@ export default async function GoalsPage({
   }
 
   const viewableProfiles = roster.filter((p) => canViewProfileGoals(me, p));
+  const goalEditableMembers = manageableProfiles(me, roster);
   if (viewableProfiles.length > 0) {
     groups.push({
       group: "メンバー",
@@ -223,7 +226,7 @@ export default async function GoalsPage({
     scope.kind === "self" ? await getWorkDayOverrideMap(supabase, scope.profileIds[0], month) : null;
 
   const dates = datesInMonth(month);
-  // ゲストのみのスコープでは、会社全体の登録を反映させない(個人の登録・既定値のみで判定する)。
+  // ゲストのみのスコープでは、会社全体の登録を反映させない（個人の登録・既定値のみで判定する）。
   const companyOverridesForScope = scope.guestOnly ? new Map<string, boolean>() : companyOverrides;
   const dayStatuses = computeMonthWorkStatus(month, companyOverridesForScope, personalOverrides);
   const workingByDate = new Map(dayStatuses.map((d) => [d.date, d.isWorking]));
@@ -289,7 +292,7 @@ export default async function GoalsPage({
 
   return (
     <div className="flex flex-col gap-6 lg:flex-row">
-      {/* 表示対象の選択(会社全体・会社ごと・チーム・個人) */}
+      {/* 表示対象の選択（会社全体・会社ごと・チーム・個人） */}
       <aside className="w-full shrink-0 lg:w-56">
         <div className={`${cardCls} sticky top-4 flex flex-col gap-4 p-4`}>
           {groups.map((g) => (
@@ -341,29 +344,29 @@ export default async function GoalsPage({
             {formatMonthLabel(month)}の実績・目標
           </h2>
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-            <StatChip label="コール件数(目標/実績)" value={`${actuals.callsTotal.toLocaleString()} / ${totalCallTarget.toLocaleString()}`} />
-            <StatChip label="アポ件数(目標/実績)" value={`${actuals.appointmentTotal.toLocaleString()} / ${appointmentTarget.toLocaleString()}`} />
-            <StatChip label="契約件数(目標/実績)" value={`${actuals.contractTotal.toLocaleString()} / ${contractTarget.toLocaleString()}`} />
+            <StatChip label="コール件数（目標/実績）" value={`${actuals.callsTotal.toLocaleString()} / ${totalCallTarget.toLocaleString()}`} />
+            <StatChip label="アポ件数（目標/実績）" value={`${actuals.appointmentTotal.toLocaleString()} / ${appointmentTarget.toLocaleString()}`} />
+            <StatChip label="契約件数（目標/実績）" value={`${actuals.contractTotal.toLocaleString()} / ${contractTarget.toLocaleString()}`} />
             <StatChip label="残り稼働日" value={`${remainingWorkingDays} / ${totalWorkingDays}日`} />
           </div>
           {dailyPace !== null && remainingCallsNeeded > 0 && (
             <p className="mt-3 text-xs text-slate-600">
               コール目標まで残り <span className="font-bold text-orange-700">{remainingCallsNeeded.toLocaleString()}件</span>
-              　(残り稼働日から逆算すると、1日あたり
-              <span className="font-bold text-orange-700"> {dailyPace.toLocaleString()}件</span> のペースが必要です)
+              　（残り稼働日から逆算すると、1日あたり
+              <span className="font-bold text-orange-700"> {dailyPace.toLocaleString()}件</span> のペースが必要です）
             </p>
           )}
         </section>
 
-        {/* 累計コール件数:目標 vs 実績のグラフ */}
+        {/* 累計コール件数：目標 vs 実績のグラフ */}
         <section className={`${cardCls} p-5`}>
-          <h2 className={sectionTitleCls}>コール件数の推移(月内累計)</h2>
+          <h2 className={sectionTitleCls}>コール件数の推移（月内累計）</h2>
           <div className="mt-3 flex items-center gap-4 text-xs">
             <span className="flex items-center gap-1.5 text-slate-500">
-              <span className="inline-block h-2.5 w-2.5 rounded-full bg-slate-300" />目標(累計)
+              <span className="inline-block h-2.5 w-2.5 rounded-full bg-slate-300" />目標（累計）
             </span>
             <span className="flex items-center gap-1.5 text-slate-500">
-              <span className="inline-block h-2.5 w-2.5 rounded-full bg-orange-500" />実績(累計)
+              <span className="inline-block h-2.5 w-2.5 rounded-full bg-orange-500" />実績（累計）
             </span>
           </div>
           <svg viewBox={`0 0 ${chartW} ${chartH}`} className="mt-2 w-full" preserveAspectRatio="none">
@@ -375,7 +378,26 @@ export default async function GoalsPage({
 
         {/* 週次まとめ */}
         <section className={`${cardCls} p-5`}>
-          <h2 className={sectionTitleCls}>週次まとめ(コール件数)</h2>
+          <h2 className={sectionTitleCls}>週次まとめ（コール件数）</h2>
+          {!scope.editableProfile && (
+            <div className="mt-2 rounded-xl border border-orange-100 bg-orange-50/60 p-3 text-xs text-slate-600">
+              <p>
+                目標は、メンバーごとの「日別コール件数目標」を入力すると、ここに週ごとの合計として表示されます。
+                {scope.kind === "self"
+                  ? "（この方の目標を入力する権限がありません）"
+                  : "入力するメンバーを選んでください（選ぶと、この画面の一番下に入力欄が出ます）。"}
+              </p>
+              {scope.kind !== "self" && goalEditableMembers.length > 0 && (
+                <div className="mt-2 flex flex-wrap gap-1.5">
+                  {goalEditableMembers.map((p) => (
+                    <Link key={p.id} href={hrefFor(`self:${p.id}`)} className={btnSecondarySmCls}>
+                      {nameFor(p)}
+                    </Link>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
           <div className="mt-3 overflow-x-auto">
             <table className="w-full min-w-[360px] text-sm">
               <thead>
@@ -402,7 +424,7 @@ export default async function GoalsPage({
           </div>
         </section>
 
-        {/* 個人の目標入力(編集権限がある場合のみ表示) */}
+        {/* 個人の目標入力（編集権限がある場合のみ表示） */}
         {scope.editableProfile && (
           <>
             <section className={`${cardCls} p-5`}>
@@ -437,47 +459,18 @@ export default async function GoalsPage({
             <section className={`${cardCls} p-5`}>
               <h2 className={sectionTitleCls}>{nameFor(scope.editableProfile)} さんの日別コール件数目標</h2>
               <p className="mt-1 text-xs text-slate-500">
-                グレーの日は稼働日カレンダー上「休み」に設定されています(土日・祝日を含む)。
+                グレーの日は稼働日カレンダー上「休み」に設定されています（土日・祝日を含む）。
               </p>
-              <form action={saveDailyCallGoals.bind(null, scope.editableProfile.id, month)} className="mt-3 flex flex-col gap-3">
-                <div className="grid grid-cols-7 gap-1.5 text-center text-[11px] font-semibold text-slate-400">
-                  {WEEKDAY_LABELS.map((label) => (
-                    <div key={label}>{label}</div>
-                  ))}
-                </div>
-                <div className="grid grid-cols-7 gap-1.5">
-                  {leadingBlanks.map((_, i) => (
-                    <div key={`blank-${i}`} />
-                  ))}
-                  {dates.map((date) => {
-                    const day = Number(date.split("-")[2]);
-                    const isWorking = workingByDate.get(date) ?? true;
-                    const value = dailyGoalForEditable?.get(date) ?? 0;
-                    return (
-                      <div
-                        key={date}
-                        className={`flex flex-col items-center gap-1 rounded-lg border p-1.5 ${
-                          isWorking ? "border-slate-200 bg-white" : "border-slate-100 bg-slate-50"
-                        } ${date === today ? "ring-2 ring-orange-300" : ""}`}
-                      >
-                        <span className={`text-[11px] ${isWorking ? "text-slate-500" : "text-slate-300"}`}>{day}</span>
-                        <input
-                          type="number"
-                          min={0}
-                          name={`call_target_${date}`}
-                          defaultValue={value}
-                          className="w-full rounded border border-slate-200 px-1 py-1 text-center text-xs tabular-nums focus:border-orange-400 focus:outline-none"
-                        />
-                      </div>
-                    );
-                  })}
-                </div>
-                <div>
-                  <button type="submit" className={btnPrimaryCls}>
-                    日別目標を保存
-                  </button>
-                </div>
-              </form>
+              <DailyCallGoalsForm
+                action={saveDailyCallGoals.bind(null, scope.editableProfile.id, month)}
+                days={dates.map((date) => ({
+                  date,
+                  isWorking: workingByDate.get(date) ?? true,
+                  value: dailyGoalForEditable?.get(date) ?? 0,
+                }))}
+                leadingBlanks={leadingBlanks.length}
+                today={today}
+              />
             </section>
           </>
         )}
