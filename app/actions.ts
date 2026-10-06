@@ -78,11 +78,19 @@ export async function addCall(
   // この通話を記録する直前のリードのステータスを控えておく。あとでこの通話記録を
   // 削除したときに、ステータスを「この通話を記録する前」の状態に自動で戻すために使う
   // （calls.status_before / status_after。migration 0024）。
-  const { data: leadBefore } = await supabase.from("leads").select("status").eq("id", leadId).maybeSingle();
+  // あわせて、担当者が「未割当」かどうかも控える。未割当なら、通話を記録した本人を
+  // 担当者に自動で割り振る（すでに担当者がいるリードは変えない。migration 0025）。
+  const { data: leadBefore } = await supabase
+    .from("leads")
+    .select("status, assigned_to")
+    .eq("id", leadId)
+    .maybeSingle();
+  const autoAssign = !!leadBefore && !leadBefore.assigned_to;
 
   const { error: callError } = await supabase.from("calls").insert({
     lead_id: leadId,
     caller_id: me.id,
+    assigned_by_call: autoAssign,
     status_before: leadBefore?.status ?? null,
     status_after: payload.next_status,
     result: payload.result,
@@ -105,12 +113,16 @@ export async function addCall(
       last_call_staff: me.display_name || me.name || me.email,
       recall_at: payload.recall_at,
       recall_target: payload.recall_target,
+      ...(autoAssign ? { assigned_to: me.id } : {}),
     })
     .eq("id", leadId);
   if (leadError) throw new Error(leadError.message);
 
   revalidatePath(`/leads/${leadId}`);
   revalidatePath("/leads");
+  // 画面側（開いているリード詳細の担当者欄）を、再読み込みなしで更新できるよう、
+  // 自動で割り振った担当者を返す（割り振らなかった場合は null）。
+  return { assignedTo: autoAssign ? me.id : null };
 }
 
 // 通話記録を編集・削除したあと、リード側のサマリー項目（最終架電日時・最終架電者・
@@ -206,7 +218,7 @@ export async function deleteCall(callId: string) {
 
   const { data: existing } = await supabase
     .from("calls")
-    .select("id, lead_id, caller_id, called_at, status_before, status_after")
+    .select("id, lead_id, caller_id, called_at, status_before, status_after, assigned_by_call")
     .eq("id", callId)
     .maybeSingle();
   if (!existing) throw new Error("通話記録が見つかりませんでした。");
@@ -246,10 +258,37 @@ export async function deleteCall(callId: string) {
     }
   }
 
+  // 担当者の自動復元：この通話の記録によって担当者が自動で割り振られていて、
+  // そのリードに通話記録が1件も残らず、担当者がまだ記録者本人のままの場合は、
+  // 「未割当」に戻す（他の人に変更済みの場合は何もしない）。権限などで戻せなくても、
+  // 通話記録の削除自体は成功させたいので、失敗してもエラーにはしない。
+  let unassigned = false;
+  if (existing.assigned_by_call) {
+    const { count: remaining } = await supabase
+      .from("calls")
+      .select("id", { count: "exact", head: true })
+      .eq("lead_id", existing.lead_id);
+    if ((remaining ?? 0) === 0) {
+      const { data: leadAssign } = await supabase
+        .from("leads")
+        .select("assigned_to")
+        .eq("id", existing.lead_id)
+        .maybeSingle();
+      if (leadAssign && leadAssign.assigned_to === existing.caller_id) {
+        const { error: unassignError } = await supabase
+          .from("leads")
+          .update({ assigned_to: null })
+          .eq("id", existing.lead_id);
+        unassigned = !unassignError;
+      }
+    }
+  }
+
   revalidatePath(`/leads/${existing.lead_id}`);
-  // 画面側（開いているリード詳細のステータス欄）を、再読み込みなしで更新できるよう、
-  // 自動で戻したステータスを返す（戻さなかった場合は null）。
-  return { restoredStatus };
+  revalidatePath("/leads");
+  // 画面側（開いているリード詳細のステータス欄・担当者欄）を、再読み込みなしで更新できるよう、
+  // 自動で戻したステータス・担当者を返す（戻さなかった場合は null / false）。
+  return { restoredStatus, unassigned };
 }
 
 // ---------------------------------------------------------------------------

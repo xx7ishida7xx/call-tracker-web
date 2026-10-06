@@ -255,7 +255,7 @@ export default function LeadDetailClient({
     const nextStatus = outcome.nextStatus ?? lead.status;
     startTransition(async () => {
       try {
-        await addCall(lead.id, {
+        const callResult = await addCall(lead.id, {
           result: callForm.result,
           result_group: callForm.resultGroup,
           notes: callForm.notes,
@@ -267,7 +267,13 @@ export default function LeadDetailClient({
           rank: callForm.rank || null,
           hot: callForm.hot,
         });
-        setForm((f) => ({ ...f, status: nextStatus }));
+        // 担当者が「未割当」だったリードは、記録した本人が自動で担当者になる。
+        // 開いている画面の担当者欄にも、再読み込みなしで反映する。
+        setForm((f) => ({
+          ...f,
+          status: nextStatus,
+          ...(callResult?.assignedTo ? { assigned_to: callResult.assignedTo } : {}),
+        }));
         setCallForm(EMPTY_CALL_FORM);
         if (afterSave) {
           afterSave();
@@ -724,7 +730,13 @@ export default function LeadDetailClient({
                 call={c}
                 meId={meId}
                 isAdmin={isAdmin}
-                onStatusRestored={(status) => setForm((f) => ({ ...f, status }))}
+                onLeadRestored={(restored) =>
+                  setForm((f) => ({
+                    ...f,
+                    ...(restored.status ? { status: restored.status } : {}),
+                    ...(restored.unassigned ? { assigned_to: "" } : {}),
+                  }))
+                }
               />
             ))}
           </ul>
@@ -882,13 +894,13 @@ function CallHistoryItem({
   call,
   meId,
   isAdmin,
-  onStatusRestored,
+  onLeadRestored,
 }: {
   call: CallWithCaller;
   meId: string;
   isAdmin: boolean;
-  // 通話記録の削除でステータスが自動で元に戻ったとき、親画面のステータス欄を更新するための通知
-  onStatusRestored: (status: string) => void;
+  // 通話記録の削除でステータス・担当者が自動で元に戻ったとき、親画面の各欄を更新するための通知
+  onLeadRestored: (restored: { status: string | null; unassigned: boolean }) => void;
 }) {
   const canManage = isAdmin || call.caller_id === meId;
   const [editing, setEditing] = useState(false);
@@ -975,7 +987,9 @@ function CallHistoryItem({
     startTransition(async () => {
       try {
         const result = await deleteCall(call.id);
-        if (result?.restoredStatus) onStatusRestored(result.restoredStatus);
+        if (result?.restoredStatus || result?.unassigned) {
+          onLeadRestored({ status: result.restoredStatus ?? null, unassigned: !!result.unassigned });
+        }
       } catch (e) {
         setError(e instanceof Error ? e.message : "削除に失敗しました。");
       }
