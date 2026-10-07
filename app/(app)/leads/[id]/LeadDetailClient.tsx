@@ -10,6 +10,8 @@ import {
   BILLING_TYPES,
   DEFAULT_CONTRACT_PRODUCTS,
   CMS_MAIN_OPTIONS,
+  HP_STATUS_OPTIONS,
+  HP_STATUS_HELP,
   CMS_OTHER_SUBOPTIONS,
   CALL_RESULT_GROUP_ORDER,
   CALL_RESULT_GROUPS,
@@ -144,6 +146,7 @@ export default function LeadDetailClient({
     cms: lead.cms,
     genre: lead.genre,
     subgenre: lead.subgenre,
+    hp_status: lead.hp_status ?? "",
     status: lead.status,
     assigned_to: lead.assigned_to ?? "",
     rep_name: lead.rep_name ?? "",
@@ -404,6 +407,21 @@ export default function LeadDetailClient({
             </Field>
             <Field label="業種詳細">
               <input className={inputCls} value={form.subgenre} onChange={(e) => setField("subgenre", e.target.value)} />
+            </Field>
+            <Field label="HPの状態">
+              <select className={inputCls} value={form.hp_status} onChange={(e) => setField("hp_status", e.target.value)}>
+                <option value="">未設定</option>
+                {HP_STATUS_OPTIONS.map((s) => (
+                  <option key={s} value={s}>
+                    {s}
+                  </option>
+                ))}
+              </select>
+              {form.hp_status && (HP_STATUS_OPTIONS as readonly string[]).includes(form.hp_status) && (
+                <p className="mt-1 text-xs text-slate-500">
+                  {HP_STATUS_HELP[form.hp_status as (typeof HP_STATUS_OPTIONS)[number]]}
+                </p>
+              )}
             </Field>
 
             <p className={fieldGroupLabelCls}>ステータス・担当</p>

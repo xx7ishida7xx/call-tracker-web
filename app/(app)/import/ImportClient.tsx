@@ -95,7 +95,7 @@ export default function ImportClient({ me, roster }: { me: Profile; roster: Prof
       </div>
 
       <p className="text-sm text-slate-500">
-        列名は「会社名, 都道府県, 住所, 電話番号, メールアドレス, URL, 元CMS, 業種, 業種詳細, 担当者」に対応しています（順不同）。
+        列名は「会社名, 都道府県, 住所, 電話番号, メールアドレス, URL, 元CMS, 業種, 業種詳細, 担当者, HPの状態」に対応しています（順不同）。
         電話番号が空の行は、架電対象として使えないため取り込みの対象外になります。
       </p>
 

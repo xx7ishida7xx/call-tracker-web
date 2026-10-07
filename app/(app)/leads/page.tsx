@@ -7,6 +7,7 @@ import {
   GENRES,
   PREFECTURES,
   CMS_FILTER_OPTIONS,
+  HP_STATUS_OPTIONS,
   CALL_RESULT_FLAT_OPTIONS,
   CALL_RANKS,
   ACQUISITION_DESIRE_OPTIONS,
@@ -85,6 +86,7 @@ export default async function LeadsPage({ searchParams }: { searchParams: Promis
   const genreList = Array.isArray(sp.genre) ? sp.genre : sp.genre ? [sp.genre] : [];
   const prefList = Array.isArray(sp.pref) ? sp.pref : sp.pref ? [sp.pref] : [];
   const cmsList = Array.isArray(sp.cms) ? sp.cms : sp.cms ? [sp.cms] : [];
+  const hpStatusList = Array.isArray(sp.hp_status) ? sp.hp_status : sp.hp_status ? [sp.hp_status] : [];
   const callRankList = Array.isArray(sp.call_rank) ? sp.call_rank : sp.call_rank ? [sp.call_rank] : [];
 
   // 「アポ禁」はオーナー・管理者以外には見せない（データ自体もRLSで見えなくなるが、
@@ -157,6 +159,7 @@ export default async function LeadsPage({ searchParams }: { searchParams: Promis
     genreList.forEach((g) => params.append("genre", g));
     prefList.forEach((pr) => params.append("pref", pr));
     cmsList.forEach((c) => params.append("cms", c));
+    hpStatusList.forEach((h) => params.append("hp_status", h));
     if (sp.caller) params.set("caller", sp.caller);
     if (sp.call_result) params.set("call_result", sp.call_result);
     callRankList.forEach((r) => params.append("call_rank", r));
@@ -219,6 +222,7 @@ export default async function LeadsPage({ searchParams }: { searchParams: Promis
 
           <FilterGroup title="参照元リスト">
             <MultiSelectFilter label="参照元" name="cms" options={CMS_FILTER_OPTIONS} selected={cmsList} />
+            <MultiSelectFilter label="HPの状態" name="hp_status" options={HP_STATUS_OPTIONS} selected={hpStatusList} />
           </FilterGroup>
 
           <FilterGroup title="コール履歴">
@@ -488,6 +492,9 @@ export default async function LeadsPage({ searchParams }: { searchParams: Promis
                 ))}
                 {cmsList.map((c) => (
                   <input key={`h-cms-${c}`} type="hidden" name="cms" value={c} />
+                ))}
+                {hpStatusList.map((h) => (
+                  <input key={`h-hp_status-${h}`} type="hidden" name="hp_status" value={h} />
                 ))}
                 {sp.caller && <input type="hidden" name="caller" value={sp.caller} />}
                 {sp.call_result && <input type="hidden" name="call_result" value={sp.call_result} />}

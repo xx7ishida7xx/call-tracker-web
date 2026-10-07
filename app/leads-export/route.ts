@@ -35,6 +35,7 @@ export async function GET() {
     cms: string;
     genre: string;
     subgenre: string;
+    hp_status: string;
     assigned: { name: string; display_name: string | null; email: string } | { name: string; display_name: string | null; email: string }[] | null;
   };
 
@@ -44,7 +45,7 @@ export async function GET() {
     const { data, error } = await supabase
       .from("leads")
       .select(
-        "company,pref,address,phone,email,url,cms,genre,subgenre,assigned:profiles!leads_assigned_to_fkey(name,display_name,email)"
+        "company,pref,address,phone,email,url,cms,genre,subgenre,hp_status,assigned:profiles!leads_assigned_to_fkey(name,display_name,email)"
       )
       .order("created_at", { ascending: true })
       // 同じ登録日時の行の並びを固定する（1,000件ずつ取得するため、並びが揺れると重複・欠落が起きる）
@@ -58,7 +59,7 @@ export async function GET() {
     if (rows.length < PAGE_SIZE) break;
   }
 
-  const headerRow = ["会社名", "都道府県", "住所", "電話番号", "メールアドレス", "URL", "元CMS", "業種", "業種詳細", "担当者"];
+  const headerRow = ["会社名", "都道府県", "住所", "電話番号", "メールアドレス", "URL", "元CMS", "業種", "業種詳細", "担当者", "HPの状態"];
   const csvRows = allRows.map((r) => {
     const assignedProfile = Array.isArray(r.assigned) ? r.assigned[0] : r.assigned;
     return [
@@ -72,6 +73,7 @@ export async function GET() {
       r.genre,
       r.subgenre,
       assignedProfile ? nameFor(assignedProfile) : "",
+      r.hp_status,
     ];
   });
 

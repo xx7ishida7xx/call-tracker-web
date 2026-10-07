@@ -866,6 +866,7 @@ export async function importLeadsCsv(csvText: string, assignTo: string | null) {
       cms: r.cms,
       genre: r.genre,
       subgenre: r.subgenre,
+      hp_status: r.hp_status,
       status: "未着手",
       assigned_to: needsAssigneeLookup ? resolveAssignee(r.assignee) : effectiveAssignTo,
     }));
@@ -954,6 +955,7 @@ export async function updateLeadsCsv(csvText: string, overwrite = false) {
     cms: string | null;
     genre: string | null;
     subgenre: string | null;
+    hp_status: string | null;
   };
   const existingById = new Map<string, ExistingLeadForUpdate>();
   const LOOKUP_CHUNK = 500;
@@ -961,7 +963,7 @@ export async function updateLeadsCsv(csvText: string, overwrite = false) {
     const chunk = phones.slice(i, i + LOOKUP_CHUNK);
     const { data } = await supabase
       .from("leads")
-      .select("id, phone, company, pref, address, email, url, cms, genre, subgenre")
+      .select("id, phone, company, pref, address, email, url, cms, genre, subgenre, hp_status")
       .in("phone", chunk);
     for (const row of (data as ExistingLeadForUpdate[]) ?? []) {
       const list = idsByPhone.get(row.phone) ?? [];
@@ -992,7 +994,7 @@ export async function updateLeadsCsv(csvText: string, overwrite = false) {
     const existing = existingById.get(ids[0]);
     // CSVに値があり、かつ（上書きモード、またはリード側がまだ空欄）のときだけ反映する
     const setField = (
-      key: "company" | "pref" | "address" | "email" | "url" | "cms" | "genre" | "subgenre",
+      key: "company" | "pref" | "address" | "email" | "url" | "cms" | "genre" | "subgenre" | "hp_status",
       value: string
     ) => {
       if (!value.trim()) return;
@@ -1007,6 +1009,7 @@ export async function updateLeadsCsv(csvText: string, overwrite = false) {
     setField("cms", r.cms);
     setField("genre", r.genre);
     setField("subgenre", r.subgenre);
+    setField("hp_status", r.hp_status);
 
     if (r.assignee.trim()) {
       const match = resolveAssigneeMatch(r.assignee, lookup);

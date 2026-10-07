@@ -47,6 +47,7 @@ export interface Lead {
   cms: string;
   genre: string;
   subgenre: string;
+  hp_status: string; // HPの状態（HP_STATUS_OPTIONS のどれか。未設定は空文字）
   status: string;
   assigned_to: string | null;
   last_call_at: string | null;
@@ -64,6 +65,24 @@ export interface Lead {
   created_at: string;
   updated_at: string;
 }
+
+// HPの状態（そのリードのホームページの状況）。リード一覧で、文字を入力せずに
+// チェックを入れるだけで絞り込めるようにするための選択式の項目。
+// DBには下の文字列がそのまま保存される（取り込みCSVの「HPの状態」列も、この文字列と同じ）。
+export const HP_STATUS_OPTIONS = [
+  "古いHP(特に古い)",
+  "古いHP(やや古い)",
+  "HP未確認",
+  "無料ツールのHP",
+] as const;
+
+// 各選択肢の意味（一覧・詳細画面での補足説明に使う）
+export const HP_STATUS_HELP: Record<(typeof HP_STATUS_OPTIONS)[number], string> = {
+  "古いHP(特に古い)": "古さの兆候が多く重なっているHP（スマホ非対応・http・古い©年など）",
+  "古いHP(やや古い)": "古さの兆候がいくつかあるHP",
+  HP未確認: "Googleマップに自社のHPが登録されていない（実際にはある場合もあるので電話時に確認）",
+  "無料ツールのHP": "Wix・Jimdo・ペライチ・Googleサイトなど、無料ツールで作ったHP",
+};
 
 // 集客意欲の選択肢。保存する値は既存データとの互換性のため "有"/"無" のまま。
 // 画面上の表示だけ、ホームページ／MEO／SNS運用の有無と表記をそろえて「あり」「なし」にする。

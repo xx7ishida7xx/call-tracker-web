@@ -63,6 +63,7 @@ export interface ParsedLeadRow {
   cms: string;
   genre: string;
   subgenre: string;
+  hp_status: string; // HPの状態（空欄なら未設定）
   assignee: string; // 担当者名 または 担当するゲスト会社名（未入力なら空文字）
 }
 
@@ -93,6 +94,10 @@ const HEADER_ALIASES: Record<string, keyof ParsedLeadRow> = {
   業種詳細: "subgenre",
   サブジャンル: "subgenre",
   subgenre: "subgenre",
+  HPの状態: "hp_status",
+  hp状態: "hp_status",
+  hpstatus: "hp_status",
+  hp_status: "hp_status",
   担当者: "assignee",
   担当: "assignee",
   担当者会社: "assignee",
@@ -129,6 +134,7 @@ export function parseLeadsCsv(text: string): { rows: ParsedLeadRow[]; unmatchedH
       cms: "",
       genre: "",
       subgenre: "",
+      hp_status: "",
       assignee: "",
     };
     keyMap.forEach((key, i) => {
