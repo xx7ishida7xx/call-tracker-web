@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentProfile } from "@/lib/auth";
 import { canManageMembers, nameFor, LEAD_STATUSES, type Profile } from "@/lib/types";
-import { currentMonthKey, formatMonthLabel, monthRange, shiftMonthKey } from "@/lib/format";
+import { currentMonthKey, formatMonthLabel, jstTodayRange, monthRange, shiftMonthKey } from "@/lib/format";
 import { btnSecondarySmCls, cardCls, sectionTitleCls, statChipCls, statChipLabelCls, statChipValueCls } from "@/lib/ui";
 
 type MonthlyMetrics = {
@@ -88,12 +88,13 @@ export default async function DashboardPage({
     })
   );
 
-  const startOfToday = new Date();
-  startOfToday.setHours(0, 0, 0, 0);
+  // 「本日」は日本時間の 0:00〜24:00 で数える（サーバーの時刻設定に左右されないようにしています）
+  const today = jstTodayRange();
   const { count: callsToday } = await supabase
     .from("calls")
     .select("id", { count: "exact", head: true })
-    .gte("called_at", startOfToday.toISOString());
+    .gte("called_at", today.start)
+    .lt("called_at", today.end);
 
   const { data: rosterData } = await supabase.from("profiles").select("*").order("role");
   const roster = (rosterData as Profile[]) ?? [];
@@ -108,9 +109,73 @@ export default async function DashboardPage({
     })
   );
 
+  // 本日の担当者別：架電数・有効架電数・アポ獲得数（架電の記録者 caller_id ごと）
+  const callsTodayByMember = await Promise.all(
+    roster.map(async (m) => {
+      const base = () =>
+        supabase
+          .from("calls")
+          .select("id", { count: "exact", head: true })
+          .eq("caller_id", m.id)
+          .gte("called_at", today.start)
+          .lt("called_at", today.end);
+      const [{ count: calls }, { count: effective }, { count: appointments }] = await Promise.all([
+        base(),
+        base().eq("connected", true),
+        base().eq("appointment", true),
+      ]);
+      return { member: m, calls: calls ?? 0, effective: effective ?? 0, appointments: appointments ?? 0 };
+    })
+  );
+  const callsTodayRanked = callsTodayByMember
+    .filter((r) => r.calls > 0)
+    .sort((a, b) => b.calls - a.calls);
+
   return (
     <div className="flex flex-col gap-6">
       <h1 className="text-lg font-bold tracking-tight text-slate-900">ダッシュボード</h1>
+
+      {/* 本日の架電：全体の合計と、担当者別の内訳（日本時間の0時〜24時） */}
+      <section className={`${cardCls} p-5`}>
+        <div className="mb-3 flex flex-wrap items-baseline justify-between gap-2">
+          <h2 className={sectionTitleCls}>本日の架電（{today.label}）</h2>
+          <p className="text-xs text-slate-500">日本時間の0時〜24時で集計しています。</p>
+        </div>
+        <div className="mb-4 grid grid-cols-2 gap-3 sm:grid-cols-3">
+          <StatChip label="本日の架電件数" value={callsToday ?? 0} />
+          <StatChip label="うち有効架電" value={callsTodayByMember.reduce((s, r) => s + r.effective, 0)} />
+          <StatChip label="本日のアポ獲得" value={callsTodayByMember.reduce((s, r) => s + r.appointments, 0)} />
+        </div>
+        {callsTodayRanked.length === 0 ? (
+          <p className="text-sm text-slate-500">本日の架電記録はまだありません。</p>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[360px] text-sm">
+              <thead>
+                <tr className="border-b border-orange-100 bg-orange-50/60 text-left text-xs font-semibold text-slate-500">
+                  <th className="px-3 py-2">担当者</th>
+                  <th className="px-3 py-2 text-right">架電</th>
+                  <th className="px-3 py-2 text-right">有効架電</th>
+                  <th className="px-3 py-2 text-right">アポ</th>
+                </tr>
+              </thead>
+              <tbody>
+                {callsTodayRanked.map(({ member, calls, effective, appointments }) => (
+                  <tr key={member.id} className="border-b border-slate-100 last:border-0">
+                    <td className="px-3 py-2.5 font-semibold text-slate-800">{nameFor(member)}</td>
+                    <td className="px-3 py-2.5 text-right tabular-nums font-semibold text-orange-700">{calls.toLocaleString()}</td>
+                    <td className="px-3 py-2.5 text-right tabular-nums text-slate-900">{effective.toLocaleString()}</td>
+                    <td className="px-3 py-2.5 text-right tabular-nums text-slate-900">{appointments.toLocaleString()}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+        <p className="mt-3 text-xs text-slate-400">
+          「有効架電」は通話記録画面のチェックボックスで記録された分のみ集計されます。
+        </p>
+      </section>
 
       {/* 月次実績：コール数 → 有効コール数 → アポ → 成約 の流れを、直近3ヶ月で比較できます */}
       <section className={`${cardCls} p-5`}>
@@ -181,7 +246,6 @@ export default async function DashboardPage({
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
           <StatChip label="リード総数" value={totalLeads ?? 0} />
           <StatChip label="未割当" value={unassigned ?? 0} />
-          <StatChip label="本日の架電件数" value={callsToday ?? 0} />
           <StatChip label="登録メンバー数" value={roster.length} />
         </div>
         <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
