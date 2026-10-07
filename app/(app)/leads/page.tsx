@@ -17,7 +17,7 @@ import {
   isGuestRole,
   type Profile,
 } from "@/lib/types";
-import { formatDate, formatDateTime } from "@/lib/format";
+import { formatDate, formatDateTime, jstTodayRange } from "@/lib/format";
 import { applyLeadFilters, getCallFilteredLeadIds, type LeadSearchParams } from "@/lib/leadsFilter";
 import { checkGuestRateLimit } from "@/lib/rateLimit";
 import AssigneeCell from "./AssigneeCell";
@@ -179,6 +179,21 @@ export default async function LeadsPage({ searchParams }: { searchParams: Promis
   const filterQS = hrefFor(page).split("?")[1] ?? "";
   const leadHref = (leadId: string) => (filterQS ? `/leads/${leadId}?${filterQS}` : `/leads/${leadId}`);
 
+  // 本日（日本時間）の「自分の」架電数：架電・有効架電・アポ。自分の記録だけを数えるので、全ロールに表示してよい
+  const todayRange = jstTodayRange();
+  const myCallsBase = () =>
+    supabase
+      .from("calls")
+      .select("id", { count: "exact", head: true })
+      .eq("caller_id", me.id)
+      .gte("called_at", todayRange.start)
+      .lt("called_at", todayRange.end);
+  const [{ count: myCallsToday }, { count: myEffectiveToday }, { count: myAppointmentsToday }] = await Promise.all([
+    myCallsBase(),
+    myCallsBase().eq("connected", true),
+    myCallsBase().eq("appointment", true),
+  ]);
+
   return (
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -189,6 +204,20 @@ export default async function LeadsPage({ searchParams }: { searchParams: Promis
         <Link href="/leads/new" className={btnPrimaryCls}>
           + 新規リード追加
         </Link>
+      </div>
+
+      {/* 本日のあなたの架電（日本時間の0時〜24時）。自分の記録だけの集計です */}
+      <div className="flex flex-wrap items-center gap-x-6 gap-y-1 rounded-xl border border-orange-100 bg-orange-50/60 px-4 py-3 text-sm">
+        <span className="font-semibold text-slate-700">本日のあなたの架電（{todayRange.label}）</span>
+        <span className="text-slate-600">
+          架電 <b className="text-lg tabular-nums text-orange-700">{(myCallsToday ?? 0).toLocaleString()}</b> 件
+        </span>
+        <span className="text-slate-600">
+          有効架電 <b className="tabular-nums text-slate-900">{(myEffectiveToday ?? 0).toLocaleString()}</b> 件
+        </span>
+        <span className="text-slate-600">
+          アポ <b className="tabular-nums text-slate-900">{(myAppointmentsToday ?? 0).toLocaleString()}</b> 件
+        </span>
       </div>
 
       {/* 実績パネル：全体のステータス別件数をひと目で確認できます（検索前でも常に表示） */}
