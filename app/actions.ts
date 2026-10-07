@@ -7,7 +7,7 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getCurrentProfile } from "@/lib/auth";
 import { parseLeadsCsv } from "@/lib/csv";
-import { canManageMembers, canManageProfileGoals, ATTACHMENT_CATEGORIES, MAX_ATTACHMENT_SIZE, type AttachmentCategory, type Lead, type Profile, type Role } from "@/lib/types";
+import { APO_KIN_STATUS, canManageMembers, canManageProfileGoals, ATTACHMENT_CATEGORIES, MAX_ATTACHMENT_SIZE, type AttachmentCategory, type Lead, type Profile, type Role } from "@/lib/types";
 import { holidayMapForMonth, defaultIsWorking, datesInMonth } from "@/lib/workday";
 
 // ---------------------------------------------------------------------------
@@ -118,7 +118,13 @@ export async function addCall(
     .eq("id", leadId);
   if (leadError) throw new Error(leadError.message);
 
-  revalidatePath(`/leads/${leadId}`);
+  // 「アポ禁」にしたリードは、オーナー・管理者以外には見えなくなる（RLS）。
+  // 開いている詳細ページを再取得すると「見つかりません」画面になってしまうため、
+  // アポ禁にした場合は詳細ページの再取得は行わず（画面側で一覧／次のリードへ移動する）、
+  // 一覧だけ更新する。
+  if (payload.next_status !== APO_KIN_STATUS) {
+    revalidatePath(`/leads/${leadId}`);
+  }
   revalidatePath("/leads");
   // 画面側（開いているリード詳細の担当者欄）を、再読み込みなしで更新できるよう、
   // 自動で割り振った担当者を返す（割り振らなかった場合は null）。

@@ -2,6 +2,7 @@
 
 import { useRef, useState, useTransition } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { updateLead, addCall, updateCall, deleteCall, addLeadAttachment, deleteLeadAttachment } from "@/app/actions";
 import {
   nameFor,
@@ -14,6 +15,7 @@ import {
   CALL_RESULT_GROUPS,
   CALL_RANKS,
   getCallOutcome,
+  APO_KIN_STATUS,
   ACQUISITION_DESIRE_OPTIONS,
   ACQUISITION_DESIRE_LABEL,
   ATTACHMENT_CATEGORIES,
@@ -122,6 +124,7 @@ export default function LeadDetailClient({
   // 一覧画面から引き継いだ絞り込み条件（一覧へ戻る／前へ／次へのリンクに引き継ぐ）
   queryString: string;
 }) {
+  const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -253,6 +256,14 @@ export default function LeadDetailClient({
     }
     const outcome = getCallOutcome(callForm.resultGroup, callForm.result);
     const nextStatus = outcome.nextStatus ?? lead.status;
+    // 「アポ禁」は、オーナー・管理者以外にはその後このリードが見えなくなる重い操作のため、
+    // 押し間違いを防ぐ確認を挟む。
+    if (outcome.nextStatus === APO_KIN_STATUS) {
+      const msg = isAdmin
+        ? "このリードのステータスを「アポ禁」にします。よろしいですか？"
+        : "このリードを「アポ禁」にします。登録すると、オーナー・管理者以外にはこのリードが表示されなくなります。よろしいですか？";
+      if (!window.confirm(msg)) return;
+    }
     startTransition(async () => {
       try {
         const callResult = await addCall(lead.id, {
@@ -275,6 +286,12 @@ export default function LeadDetailClient({
           ...(callResult?.assignedTo ? { assigned_to: callResult.assignedTo } : {}),
         }));
         setCallForm(EMPTY_CALL_FORM);
+        // アポ禁にしたリードは、オーナー・管理者以外には見えなくなる。この画面に
+        // 留まると「見つかりません」になるため、次のリード（無ければ一覧）へ移動する。
+        if (nextStatus === APO_KIN_STATUS && !isAdmin) {
+          router.push(nextHref ?? listHref);
+          return;
+        }
         if (afterSave) {
           afterSave();
         }
@@ -465,7 +482,15 @@ export default function LeadDetailClient({
                     <p className="mb-2 text-xs font-bold text-slate-500">{group}</p>
                     <div className="flex flex-col gap-1.5">
                       {CALL_RESULT_GROUPS[group].map((label) => (
-                        <label key={label} className="flex items-center gap-2 text-sm text-slate-700">
+                        <label
+                          key={label}
+                          // 「アポ禁」は押し間違いを防ぐため、直前の項目から区切り線＋余白で離し、赤字で表示する
+                          className={
+                            label === APO_KIN_STATUS
+                              ? "mt-2 flex items-center gap-2 border-t border-slate-200 pt-2.5 text-sm font-semibold text-red-600"
+                              : "flex items-center gap-2 text-sm text-slate-700"
+                          }
+                        >
                           <input
                             type="radio"
                             name="call-result"
@@ -1050,7 +1075,14 @@ function CallHistoryItem({
                 <p className="mb-2 text-xs font-bold text-slate-500">{group}</p>
                 <div className="flex flex-col gap-1.5">
                   {CALL_RESULT_GROUPS[group].map((label) => (
-                    <label key={label} className="flex items-center gap-2 text-sm text-slate-700">
+                    <label
+                      key={label}
+                      className={
+                        label === APO_KIN_STATUS
+                          ? "mt-2 flex items-center gap-2 border-t border-slate-200 pt-2.5 text-sm font-semibold text-red-600"
+                          : "flex items-center gap-2 text-sm text-slate-700"
+                      }
+                    >
                       <input
                         type="radio"
                         name={`call-result-edit-${call.id}`}
