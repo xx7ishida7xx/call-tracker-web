@@ -791,7 +791,7 @@ export default function LeadDetailClient({
       <section className={`${cardCls} p-5`}>
         <h2 className={`mb-1 ${sectionTitleCls}`}>添付ファイル</h2>
         <p className="mb-4 text-xs text-slate-400">
-          診断レポートやアポ表をアップロードしておくと、ここで過去分もあわせて確認できます。
+          診断レポートやアポ表のファイルを、点線の枠にドラッグ＆ドロップするだけで取り込めます。過去分もここであわせて確認できます。
         </p>
         <div className="grid gap-6 sm:grid-cols-2">
           {ATTACHMENT_CATEGORIES.map((category) => (
@@ -810,7 +810,10 @@ export default function LeadDetailClient({
   );
 }
 
-// 添付ファイルの区分（診断レポート／アポ表）ごとの、アップロードフォーム＋履歴一覧
+// 取り込める添付ファイルの拡張子（ファイル選択の accept と同じ）
+const ATTACHMENT_ACCEPT_RE = /\.(pdf|png|jpe?g|webp|xlsx|xls|docx?)$/i;
+
+// 添付ファイルの区分（診断レポート／アポ表）ごとの、ドラッグ＆ドロップのアップロード欄＋履歴一覧
 function AttachmentGroup({
   leadId,
   category,
@@ -827,28 +830,45 @@ function AttachmentGroup({
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [note, setNote] = useState("");
+  const [dragging, setDragging] = useState(false);
+  const [progress, setProgress] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  function handleUpload(e: React.FormEvent<HTMLFormElement>) {
-    e.preventDefault();
+  // ドラッグ＆ドロップ／ファイル選択で受け取ったファイルを、順番にアップロードする。
+  // 受け付ける拡張子は、ファイル選択ダイアログの accept と同じ。
+  function uploadFiles(fileList: FileList | File[]) {
     setError(null);
-    const file = fileInputRef.current?.files?.[0];
-    if (!file) {
-      setError("ファイルを選択してください。");
+    const all = Array.from(fileList);
+    if (all.length === 0) return;
+    const allowed = all.filter((f) => ATTACHMENT_ACCEPT_RE.test(f.name));
+    const rejected = all.filter((f) => !ATTACHMENT_ACCEPT_RE.test(f.name));
+    if (allowed.length === 0) {
+      setError("このファイルの形式は取り込めません（PDF・画像・Excel・Word に対応しています）。");
       return;
     }
-    const formData = new FormData();
-    formData.set("file", file);
-    formData.set("category", category);
-    formData.set("note", note);
     startTransition(async () => {
-      try {
-        await addLeadAttachment(leadId, formData);
-        setNote("");
-        if (fileInputRef.current) fileInputRef.current.value = "";
-      } catch (err) {
-        setError(err instanceof Error ? err.message : "アップロードに失敗しました。");
+      const failures: string[] = [];
+      for (let i = 0; i < allowed.length; i++) {
+        const file = allowed[i];
+        setProgress(`${i + 1}/${allowed.length} 件目をアップロード中…（${file.name}）`);
+        const formData = new FormData();
+        formData.set("file", file);
+        formData.set("category", category);
+        formData.set("note", note);
+        try {
+          await addLeadAttachment(leadId, formData);
+        } catch (err) {
+          failures.push(`${file.name}：${err instanceof Error ? err.message : "アップロードに失敗しました。"}`);
+        }
       }
+      setProgress(null);
+      if (failures.length < allowed.length) setNote("");
+      if (fileInputRef.current) fileInputRef.current.value = "";
+      const messages = [...failures];
+      if (rejected.length > 0) {
+        messages.push(`形式が対応外のため取り込まなかったファイル：${rejected.map((f) => f.name).join("、")}`);
+      }
+      if (messages.length > 0) setError(messages.join("\n"));
     });
   }
 
@@ -868,25 +888,63 @@ function AttachmentGroup({
     <div className="flex flex-col gap-3">
       <h3 className="text-sm font-bold text-slate-700">{category}</h3>
 
-      <form onSubmit={handleUpload} className="flex flex-col gap-2 rounded-xl border border-slate-200 bg-slate-50/60 p-3">
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept=".pdf,.png,.jpg,.jpeg,.webp,.xlsx,.xls,.doc,.docx"
-          className="w-full rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-xs text-slate-500 file:mr-3 file:cursor-pointer file:rounded-md file:border file:border-orange-200 file:bg-orange-50 file:px-3 file:py-1.5 file:text-xs file:font-semibold file:text-orange-700 file:shadow-sm hover:file:bg-orange-100"
-        />
+      <div className="flex flex-col gap-2 rounded-xl border border-slate-200 bg-slate-50/60 p-3">
         <input
           type="text"
-          placeholder="メモ（任意）"
+          placeholder="メモ（任意・先に入力しておくと、取り込むファイルに付きます）"
           value={note}
           onChange={(e) => setNote(e.target.value)}
           className={inputCls}
         />
-        {error && <p className={errorCls}>{error}</p>}
-        <button type="submit" disabled={isPending} className={`self-start ${btnSecondarySmCls}`}>
-          {isPending ? "処理中…" : `＋ ${category}をアップロード`}
-        </button>
-      </form>
+        <div
+          role="button"
+          tabIndex={0}
+          onClick={() => !isPending && fileInputRef.current?.click()}
+          onKeyDown={(e) => {
+            if ((e.key === "Enter" || e.key === " ") && !isPending) {
+              e.preventDefault();
+              fileInputRef.current?.click();
+            }
+          }}
+          onDragOver={(e) => {
+            e.preventDefault();
+            if (!isPending) setDragging(true);
+          }}
+          onDragLeave={(e) => {
+            // 枠の中の子要素への出入りでは解除しない
+            if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setDragging(false);
+          }}
+          onDrop={(e) => {
+            e.preventDefault();
+            setDragging(false);
+            if (isPending) return;
+            uploadFiles(e.dataTransfer.files);
+          }}
+          className={`flex cursor-pointer flex-col items-center justify-center gap-1 rounded-lg border-2 border-dashed px-3 py-6 text-center transition ${
+            dragging
+              ? "border-orange-400 bg-orange-50 text-orange-700"
+              : "border-slate-300 bg-white text-slate-500 hover:border-orange-300 hover:bg-orange-50/50"
+          } ${isPending ? "cursor-wait opacity-60" : ""}`}
+        >
+          <span className="text-sm font-semibold">
+            {isPending ? "アップロード中…" : dragging ? "ここで離すと取り込みます" : `${category}のファイルをここにドラッグ＆ドロップ`}
+          </span>
+          <span className="text-xs text-slate-400">
+            {progress ?? "またはクリックしてファイルを選択（複数まとめて可・1ファイル25MBまで）"}
+          </span>
+        </div>
+        <input
+          ref={fileInputRef}
+          type="file"
+          multiple
+          accept=".pdf,.png,.jpg,.jpeg,.webp,.xlsx,.xls,.doc,.docx"
+          className="hidden"
+          onChange={(e) => {
+            if (e.target.files) uploadFiles(e.target.files);
+          }}
+        />
+        {error && <p className={`${errorCls} whitespace-pre-line`}>{error}</p>}
+      </div>
 
       {items.length === 0 ? (
         <p className="text-xs text-slate-400">まだファイルがありません</p>
