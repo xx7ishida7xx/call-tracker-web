@@ -844,18 +844,31 @@ export async function importLeadsCsv(csvText: string, assignTo: string | null) {
   }
 
   // 電話番号での重複チェック（既存に同じ電話番号があれば取り込まない）
+  // ※電話番号を一度に大量（千件超）指定すると、問い合わせが長すぎて失敗し、重複チェックが
+  //   素通りしてしまう不具合があったため、200件ずつに分けて調べる。調べるのに失敗したら取り込みを止める。
   const phones = Array.from(new Set(rows.map((r) => r.phone).filter(Boolean)));
-  let existingPhones = new Set<string>();
-  if (phones.length > 0) {
-    const { data: existing } = await supabase
+  const existingPhones = new Set<string>();
+  const DUP_CHECK_CHUNK = 200;
+  for (let i = 0; i < phones.length; i += DUP_CHECK_CHUNK) {
+    const chunk = phones.slice(i, i + DUP_CHECK_CHUNK);
+    const { data: existing, error: dupError } = await supabase
       .from("leads")
       .select("phone")
-      .in("phone", phones);
-    existingPhones = new Set((existing ?? []).map((r) => r.phone).filter(Boolean));
+      .in("phone", chunk);
+    if (dupError) throw new Error(`重複チェックに失敗したため、取り込みを中止しました: ${dupError.message}`);
+    for (const r of existing ?? []) {
+      if (r.phone) existingPhones.add(r.phone);
+    }
   }
 
+  // CSVの中に同じ電話番号の行が複数ある場合も、最初の1行だけを取り込む
+  const seenInCsv = new Set<string>();
   const toInsert = rows
-    .filter((r) => !existingPhones.has(r.phone))
+    .filter((r) => {
+      if (existingPhones.has(r.phone) || seenInCsv.has(r.phone)) return false;
+      seenInCsv.add(r.phone);
+      return true;
+    })
     .map((r) => ({
       company: r.company,
       pref: r.pref,
