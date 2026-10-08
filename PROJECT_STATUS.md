@@ -672,3 +672,8 @@ IDを2番目の並び基準に追加して固定した（DBの変更なし）。
 - DB：leads.extra_urls（jsonb、文字列の配列）を追加（migration 0035）。メインのURL（leads.url）は従来どおり。
 - ※ 0035のSQLを先に実行しないと、リード情報の保存がエラーになる（保存時に extra_urls を送るため）。
 - 変更ファイル: app/(app)/leads/[id]/LeadDetailClient.tsx, lib/types.ts, supabase/migrations/0035_lead_extra_urls.sql
+
+## 添付ファイルに HTML（.html / .htm）を追加（2026-10-08）
+- 診断レポートなどのHTMLファイルを添付できるように。HTMLはサイト内で直接表示せず、ダウンロードして開く形（署名付きURLにダウンロード指定を付ける）。
+- SQL：supabase/migrations/0036_attachments_allow_html.sql（バケット lead-attachments の許可形式に text/html を追加）。実行しないとHTMLのアップロードは拒否される。
+- 変更ファイル: app/(app)/leads/[id]/LeadDetailClient.tsx, app/(app)/leads/[id]/page.tsx

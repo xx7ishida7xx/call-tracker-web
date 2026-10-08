@@ -872,7 +872,7 @@ export default function LeadDetailClient({
 }
 
 // 取り込める添付ファイルの拡張子（ファイル選択の accept と同じ）
-const ATTACHMENT_ACCEPT_RE = /\.(pdf|png|jpe?g|webp|xlsx|xls|docx?)$/i;
+const ATTACHMENT_ACCEPT_RE = /\.(pdf|png|jpe?g|webp|xlsx|xls|docx?|html?)$/i;
 
 // 添付ファイルの区分（診断レポート／アポ表）ごとの、ドラッグ＆ドロップのアップロード欄＋履歴一覧
 function AttachmentGroup({
@@ -904,7 +904,7 @@ function AttachmentGroup({
     const allowed = all.filter((f) => ATTACHMENT_ACCEPT_RE.test(f.name));
     const rejected = all.filter((f) => !ATTACHMENT_ACCEPT_RE.test(f.name));
     if (allowed.length === 0) {
-      setError("このファイルの形式は取り込めません（PDF・画像・Excel・Word に対応しています）。");
+      setError("このファイルの形式は取り込めません（PDF・画像・Excel・Word・HTML に対応しています）。");
       return;
     }
     startTransition(async () => {
@@ -995,7 +995,7 @@ function AttachmentGroup({
           ref={fileInputRef}
           type="file"
           multiple
-          accept=".pdf,.png,.jpg,.jpeg,.webp,.xlsx,.xls,.doc,.docx"
+          accept=".pdf,.png,.jpg,.jpeg,.webp,.xlsx,.xls,.doc,.docx,.html,.htm"
           className="hidden"
           onChange={(e) => {
             if (e.target.files) uploadFiles(e.target.files);

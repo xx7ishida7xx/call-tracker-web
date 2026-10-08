@@ -82,7 +82,12 @@ export default async function LeadDetailPage({
     ).map(async (a) => {
       const { data: signed } = await supabase.storage
         .from("lead-attachments")
-        .createSignedUrl(a.file_path, ATTACHMENT_SIGNED_URL_TTL_SECONDS);
+        // HTMLファイルは、サイト内で直接表示せず、ダウンロードして開く形にする（安全のため）
+        .createSignedUrl(
+          a.file_path,
+          ATTACHMENT_SIGNED_URL_TTL_SECONDS,
+          /\.html?$/i.test(a.file_name) ? { download: a.file_name } : undefined
+        );
       return {
         id: a.id,
         lead_id: a.lead_id,
