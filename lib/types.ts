@@ -197,7 +197,7 @@ export const CALL_RESULT_GROUP_ORDER = ["つながらなかった", "つなが�
 export type CallResultGroup = (typeof CALL_RESULT_GROUP_ORDER)[number];
 
 export const CALL_RESULT_GROUPS: Record<CallResultGroup, readonly string[]> = {
-  つながらなかった: ["留守", "廃業", "再コール"],
+  つながらなかった: ["留守", "話中", "廃業", "再コール"],
   つながった: ["フロントNG", "代表NG", "追わない", "再コール", "前確依頼", "前確NG", "アポ確定", "アポ禁"],
   その他: ["結果待ち", "キャンセル"],
   訪問結果: ["受注", "追客", "検討", "第三者商談", "先々", "失注", "BK"],
@@ -208,7 +208,7 @@ export const CALL_RESULT_GROUPS: Record<CallResultGroup, readonly string[]> = {
 // nextStatus が null の場合は「ステータスは変更しない」を意味する。
 //
 // ステータス自動連動（2026-10-02 見直し）：
-//   つながらなかった：留守→架電中／廃業→対象外／再コール→架電中
+//   つながらなかった：留守→架電中／話中→架電中／廃業→対象外／再コール→架電中
 //   つながった：フロントNG・代表NG・追わない→コールアウト／再コール→見込み／
 //              前確依頼→前確待ち／前確NG→前確NG／アポ確定→アポ確定／アポ禁→アポ禁
 //   （前確待ちのリードを、前確した人が「アポ確定」にしても、アポの成績は前確依頼をした人に付く）
@@ -217,6 +217,7 @@ export const CALL_RESULT_GROUPS: Record<CallResultGroup, readonly string[]> = {
 export const CALL_RESULT_OUTCOME: Record<CallResultGroup, Record<string, CallOutcome>> = {
   つながらなかった: {
     留守: { connected: false, appointment: false, nextStatus: "架電中" },
+    話中: { connected: false, appointment: false, nextStatus: "架電中" },
     廃業: { connected: false, appointment: false, nextStatus: "対象外" },
     再コール: { connected: false, appointment: false, nextStatus: "架電中" },
   },
