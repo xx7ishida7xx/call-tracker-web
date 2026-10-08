@@ -1,6 +1,7 @@
 export function formatDateTime(iso: string | null | undefined): string {
   if (!iso) return "—";
   return new Date(iso).toLocaleString("ja-JP", {
+    timeZone: "Asia/Tokyo",
     year: "numeric",
     month: "2-digit",
     day: "2-digit",
@@ -12,6 +13,7 @@ export function formatDateTime(iso: string | null | undefined): string {
 export function formatDate(iso: string | null | undefined): string {
   if (!iso) return "—";
   return new Date(iso).toLocaleDateString("ja-JP", {
+    timeZone: "Asia/Tokyo",
     year: "numeric",
     month: "2-digit",
     day: "2-digit",
@@ -33,9 +35,20 @@ export function formatMonthLabel(yyyyMm: string): string {
   return `${y}年${m}月`;
 }
 
-export function currentMonthKey(): string {
-  const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+// 日本時間(JST)での「今月」。サーバーは UTC で動くため、そのまま getMonth() だと月初・月末で日本とズレる。
+const JST_OFFSET_MS = 9 * 60 * 60 * 1000;
+
+export function currentMonthKey(now: Date = new Date()): string {
+  const j = new Date(now.getTime() + JST_OFFSET_MS);
+  return `${j.getUTCFullYear()}-${String(j.getUTCMonth() + 1).padStart(2, "0")}`;
+}
+
+// 日本時間(JST)での日付キー "YYYY-MM-DD"。ISO文字列や Date を渡すと、日本時間の何日かを返す。
+export function jstDateKey(input: Date | string = new Date()): string {
+  const d = typeof input === "string" ? new Date(input) : input;
+  const j = new Date(d.getTime() + JST_OFFSET_MS);
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${j.getUTCFullYear()}-${pad(j.getUTCMonth() + 1)}-${pad(j.getUTCDate())}`;
 }
 
 // yyyyMm ("2026-09") から offset ヶ月ずらした年月キーを返す（offset はマイナス可）
@@ -45,11 +58,11 @@ export function shiftMonthKey(yyyyMm: string, offset: number): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
 }
 
-// yyyyMm ("2026-09") の月初・翌月初（どちらもローカルタイムゾーンの ISO 文字列）
+// yyyyMm ("2026-09") の月初・翌月初（日本時間の0:00を基準にした ISO 文字列）
 export function monthRange(yyyyMm: string): { start: string; end: string } {
   const [y, m] = yyyyMm.split("-").map(Number);
-  const start = new Date(y, m - 1, 1);
-  const end = new Date(y, m, 1);
+  const start = new Date(Date.UTC(y, m - 1, 1) - JST_OFFSET_MS);
+  const end = new Date(Date.UTC(y, m, 1) - JST_OFFSET_MS);
   return { start: start.toISOString(), end: end.toISOString() };
 }
 

@@ -1,6 +1,7 @@
 // 目標管理・稼働日カレンダー画面用の、データ取得ヘルパー（サーバーコンポーネントから使う）。
 
 import type { createClient } from "@/lib/supabase/server";
+import { jstDateKey } from "@/lib/format";
 import { datesInMonth, holidayMapForMonth, resolveIsWorking } from "@/lib/workday";
 
 type SupabaseClient = Awaited<ReturnType<typeof createClient>>;
@@ -54,10 +55,9 @@ export type MonthActuals = {
   callsTotal: number;
 };
 
+// 架電日時（UTCのISO文字列）を、日本時間の日付キーに直す
 function toDateKey(iso: string): string {
-  const d = new Date(iso);
-  const pad = (n: number) => String(n).padStart(2, "0");
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+  return jstDateKey(iso);
 }
 
 export async function getMonthActuals(
@@ -141,7 +141,5 @@ export function countTotalWorkingDays(dayStatuses: DayWorkStatus[]): number {
 }
 
 export function todayKey(): string {
-  const d = new Date();
-  const pad = (n: number) => String(n).padStart(2, "0");
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+  return jstDateKey();
 }

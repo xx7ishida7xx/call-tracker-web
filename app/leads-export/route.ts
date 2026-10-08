@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getCurrentProfile } from "@/lib/auth";
 import { nameFor } from "@/lib/types";
 import { rowsToCsvText } from "@/lib/csv";
+import { jstDateKey } from "@/lib/format";
 
 // リード一覧のCSVエクスポート（全件）。
 //
@@ -78,8 +79,7 @@ export async function GET() {
   });
 
   const csvText = rowsToCsvText(headerRow, csvRows);
-  const today = new Date();
-  const filename = `leads_export_${today.getFullYear()}${String(today.getMonth() + 1).padStart(2, "0")}${String(today.getDate()).padStart(2, "0")}.csv`;
+  const filename = `leads_export_${jstDateKey().replace(/-/g, "")}.csv`;
 
   return new NextResponse(csvText, {
     status: 200,

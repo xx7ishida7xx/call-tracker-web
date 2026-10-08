@@ -624,3 +624,10 @@ IDを2番目の並び基準に追加して固定した（DBの変更なし）。
 - リード詳細の電話番号欄（発信ボタンの右）に「電話番号で検索」ボタン（虫眼鏡アイコン）を追加。
 - クリックすると、その電話番号を引用符つきでGoogle検索した結果を新しいタブで開く。
 - 変更ファイル: app/(app)/leads/[id]/LeadDetailClient.tsx
+
+## 日付の区切りを日本時間にそろえた（2026-10-08）
+- サーバー(Vercel)は UTC で動くため、月初・月末・日付の区切りが日本時間の朝9時になっていた問題を修正。
+- lib/format.ts: monthRange / currentMonthKey を日本時間基準に。jstDateKey() を新設。formatDate/formatDateTime は Asia/Tokyo 固定。
+- lib/goalsData.ts: 日別架電数の日付(toDateKey)と todayKey を日本時間に。
+- lib/leadsFilter.ts: 再コール日の絞り込み(from/to)を +09:00 で解釈。
+- app/leads-export/route.ts: エクスポートのファイル名の日付を日本時間に。

@@ -104,8 +104,8 @@ export function applyLeadFilters<Q extends { eq: any; ilike: any; in: any; gte: 
   // HPの状態（選択式・複数選択）。選んだもののどれかに当てはまるリードを出す。
   const hpStatusList = toList(sp.hp_status);
   if (hpStatusList.length > 0) q = q.in("hp_status", hpStatusList);
-  if (sp.recall_from) q = q.gte("recall_at", new Date(`${sp.recall_from}T00:00:00`).toISOString());
-  if (sp.recall_to) q = q.lte("recall_at", new Date(`${sp.recall_to}T23:59:59`).toISOString());
+  if (sp.recall_from) q = q.gte("recall_at", new Date(`${sp.recall_from}T00:00:00+09:00`).toISOString());
+  if (sp.recall_to) q = q.lte("recall_at", new Date(`${sp.recall_to}T23:59:59+09:00`).toISOString());
   // 注意：.contains() は第2引数がJSの配列だと「Postgresのネイティブ配列カラム」
   // 向けの書式（cs.{...}）に変換されてしまい、オブジェクトを含む配列を渡すと
   // 壊れたJSON文字列になってしまう（jsonbカラムであるcontractsには不正な値）。
