@@ -181,6 +181,24 @@ export default function LeadDetailClient({
     setField("cms", joinCmsValue(main, sub, custom));
   }
 
+  // 追加のURL：ホームページを複数持っている会社用に、2つ目以降のURLを任意で追加できる
+  const [extraUrls, setExtraUrls] = useState<string[]>(() => (Array.isArray(lead.extra_urls) ? lead.extra_urls : []));
+
+  function setExtraUrl(index: number, value: string) {
+    setExtraUrls((list) => list.map((u, i) => (i === index ? value : u)));
+    setSaved(false);
+  }
+
+  function addExtraUrl() {
+    setExtraUrls((list) => [...list, ""]);
+    setSaved(false);
+  }
+
+  function removeExtraUrl(index: number) {
+    setExtraUrls((list) => list.filter((_, i) => i !== index));
+    setSaved(false);
+  }
+
   // 契約状況：HP・MEO・SNS運用など、商材ごとに複数行を管理します
   // （「有」チェックがまだ無かった時期に保存されたデータは active が undefined になっているため、
   //   falseで補って読み込む）
@@ -222,6 +240,7 @@ export default function LeadDetailClient({
           ...form,
           assigned_to: form.assigned_to || null,
           contracts,
+          extra_urls: extraUrls.map((u) => u.trim()).filter((u) => u !== ""),
         });
         setSaved(true);
       } catch (e) {
@@ -358,15 +377,43 @@ export default function LeadDetailClient({
                 <QuickMapLink address={form.address} />
               </div>
             </Field>
+            <Field label="URL" full>
+              <div className="flex flex-col gap-1.5">
+                <div className="flex gap-1.5">
+                  <input className={inputCls} value={form.url} onChange={(e) => setField("url", e.target.value)} />
+                  <QuickOpenLink url={form.url} />
+                  <QuickRichResultsLink url={form.url} />
+                </div>
+                {extraUrls.map((u, i) => (
+                  <div key={i} className="flex gap-1.5">
+                    <input
+                      className={inputCls}
+                      placeholder={`URL ${i + 2}`}
+                      value={u}
+                      onChange={(e) => setExtraUrl(i, e.target.value)}
+                    />
+                    <QuickOpenLink url={u} />
+                    <QuickRichResultsLink url={u} />
+                    <button
+                      type="button"
+                      onClick={() => removeExtraUrl(i)}
+                      className="shrink-0 px-1 text-xs font-medium text-slate-400 hover:text-rose-600"
+                    >
+                      削除
+                    </button>
+                  </div>
+                ))}
+                <button
+                  type="button"
+                  onClick={addExtraUrl}
+                  className="self-start text-xs font-semibold text-orange-600 hover:underline"
+                >
+                  ＋ URLを追加（ホームページが複数ある場合）
+                </button>
+              </div>
+            </Field>
             <Field label="メールアドレス">
               <input className={inputCls} value={form.email} onChange={(e) => setField("email", e.target.value)} />
-            </Field>
-            <Field label="URL">
-              <div className="flex gap-1.5">
-                <input className={inputCls} value={form.url} onChange={(e) => setField("url", e.target.value)} />
-                <QuickOpenLink url={form.url} />
-                <QuickRichResultsLink url={form.url} />
-              </div>
             </Field>
             <Field label="参照元">
               <div className="flex flex-col gap-1.5">

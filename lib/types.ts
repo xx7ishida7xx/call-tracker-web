@@ -44,6 +44,7 @@ export interface Lead {
   phone: string;
   email: string;
   url: string;
+  extra_urls: string[]; // 2つ目以降のホームページURL（任意。メインのURLは url）
   cms: string;
   genre: string;
   subgenre: string;

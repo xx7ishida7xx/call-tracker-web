@@ -666,3 +666,9 @@ IDを2番目の並び基準に追加して固定した（DBの変更なし）。
 ## 通話結果「話中」を追加（2026-10-08）
 - 「つながらなかった」グループの、留守の下に「話中」を追加。有効架電OFF・アポOFF・ステータス → 架電中（留守と同じ連動）。
 - 変更ファイル: lib/types.ts（SQL変更なし）
+
+## URL欄を住所の下へ移動＋追加URL（2026-10-08）
+- リード詳細の「URL」を住所の下（全幅）に移動。ホームページを複数持つ会社用に「＋ URLを追加」で2つ目以降を任意で追加できる（各URLに「開く」「リッチリザルトテスト」リンクと削除ボタン付き）。
+- DB：leads.extra_urls（jsonb、文字列の配列）を追加（migration 0035）。メインのURL（leads.url）は従来どおり。
+- ※ 0035のSQLを先に実行しないと、リード情報の保存がエラーになる（保存時に extra_urls を送るため）。
+- 変更ファイル: app/(app)/leads/[id]/LeadDetailClient.tsx, lib/types.ts, supabase/migrations/0035_lead_extra_urls.sql
