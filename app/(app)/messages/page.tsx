@@ -2,7 +2,6 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentProfile } from "@/lib/auth";
-import { isGuestRole, nameFor, type Profile } from "@/lib/types";
 import { formatDateTime } from "@/lib/format";
 import { cardCls } from "@/lib/ui";
 
@@ -11,13 +10,12 @@ import { cardCls } from "@/lib/ui";
 export default async function MessagesPage() {
   const me = await getCurrentProfile();
   if (!me) redirect("/login");
-  if (isGuestRole(me.role)) redirect("/leads");
 
   const supabase = await createClient();
   const { data } = await supabase
     .from("lead_comments")
     .select(
-      "id, lead_id, body, created_at, read_at, author:profiles!lead_comments_author_id_fkey(id,name,display_name,email), lead:leads(id, company)"
+      "id, lead_id, author_id, body, created_at, read_at, lead:leads(id, company)"
     )
     .eq("to_profile_id", me.id)
     .order("created_at", { ascending: false })
@@ -26,13 +24,20 @@ export default async function MessagesPage() {
   type Row = {
     id: string;
     lead_id: string;
+    author_id: string | null;
     body: string;
     created_at: string;
     read_at: string | null;
-    author: Pick<Profile, "id" | "name" | "display_name" | "email"> | null;
     lead: { id: string; company: string } | null;
   };
   const rows = (data as unknown as Row[]) ?? [];
+  // 書き手の名前（他社のプロフィールを直接読めないゲストでも表示できるよう、専用の関数で取得）
+  const authorIds = Array.from(new Set(rows.map((r) => r.author_id).filter((x): x is string => !!x)));
+  const authorNames = new Map<string, string>();
+  if (authorIds.length > 0) {
+    const { data: names } = await supabase.rpc("profile_display_names", { p_ids: authorIds });
+    for (const n of (names as { id: string; label: string }[] | null) ?? []) authorNames.set(n.id, n.label);
+  }
   const unread = rows.filter((r) => !r.read_at);
   const read = rows.filter((r) => r.read_at);
 
@@ -48,7 +53,7 @@ export default async function MessagesPage() {
           <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-slate-500">
             {!r.read_at && <span className="rounded-full bg-orange-500 px-2 py-0.5 font-semibold text-white">未読</span>}
             <span className="font-semibold text-slate-800">{r.lead?.company || "（会社名未登録）"}</span>
-            <span>・{r.author ? nameFor(r.author) : "不明なメンバー"}さんから</span>
+            <span>・{(r.author_id && authorNames.get(r.author_id)) || "不明なメンバー"}さんから</span>
             <span>{formatDateTime(r.created_at)}</span>
           </div>
           <p className="mt-1 line-clamp-3 whitespace-pre-wrap text-sm text-slate-700">{r.body}</p>

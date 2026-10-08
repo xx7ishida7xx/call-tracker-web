@@ -201,9 +201,9 @@ export default async function LeadsPage({ searchParams }: { searchParams: Promis
       .lt("called_at", todayRange.end),
   ]);
 
-  // 自分宛の未読コメントがあるリード（一覧の会社名の横に「自分宛」の目印を出す）。コメントは社内メンバー用
+  // 自分宛の未読コメントがあるリード（一覧の会社名の横に「自分宛」の目印を出す）
   const unreadLeadIds = new Set<string>();
-  if (!isGuestRole(me.role)) {
+  {
     const { data: unreadRows } = await supabase
       .from("lead_comments")
       .select("lead_id")

@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { getCurrentProfile } from "@/lib/auth";
-import { canManageMembers, isGuestRole, nameFor, ROLE_LABEL } from "@/lib/types";
+import { canManageMembers, nameFor, ROLE_LABEL } from "@/lib/types";
 import { createClient } from "@/lib/supabase/server";
 import { signOut } from "@/app/actions";
 import Sidebar, { TopBarNav, type NavItem } from "./NavBar";
@@ -15,18 +15,15 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   const canManage = canManageMembers(me);
   const canImport = me.role === "admin" || me.role === "teamlead";
 
-  // 自分宛の未読コメントの件数（コメントは社内メンバー用なので、ゲストには出さない）
-  const showMessages = !isGuestRole(me.role);
-  let unreadMessages = 0;
-  if (showMessages) {
-    const supabase = await createClient();
-    const { count } = await supabase
-      .from("lead_comments")
-      .select("id", { count: "exact", head: true })
-      .eq("to_profile_id", me.id)
-      .is("read_at", null);
-    unreadMessages = count ?? 0;
-  }
+  // 自分宛の未読コメントの件数
+  const showMessages = true;
+  const supabase = await createClient();
+  const { count: unreadCount } = await supabase
+    .from("lead_comments")
+    .select("id", { count: "exact", head: true })
+    .eq("to_profile_id", me.id)
+    .is("read_at", null);
+  const unreadMessages = unreadCount ?? 0;
 
   // 「管理者メニュー」はオーナー・管理者だけに表示されるグループです。
   // スタッフ用の画面と管理者用の画面がサイドバー上でひと目で区別できるようにしています。

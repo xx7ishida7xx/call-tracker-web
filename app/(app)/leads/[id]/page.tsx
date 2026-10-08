@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentProfile } from "@/lib/auth";
-import { canManageMembers, isGuestRole, nameFor, type Lead, type LeadAttachment, type Profile, type Call } from "@/lib/types";
+import { canManageMembers, isGuestRole, nameFor, type Lead, type LeadAttachment, type LeadComment, type Profile, type Call } from "@/lib/types";
 import { getAdjacentLeadIds, searchParamsToQueryString, type LeadSearchParams } from "@/lib/leadsFilter";
 import { checkGuestRateLimit } from "@/lib/rateLimit";
 import { cardCls, errorCls } from "@/lib/ui";
@@ -98,43 +98,37 @@ export default async function LeadDetailPage({
     })
   );
 
-  // コメント（チャット）。宛先に選べるのは、自分に見えるメンバー（自分以外）
+  // コメント（チャット）。書き手・宛先の名前は、他社のプロフィールを直接読めないゲストでも表示できるよう、専用の関数で取得する
   const { data: commentRows } = await supabase
     .from("lead_comments")
-    .select(
-      "*, author:profiles!lead_comments_author_id_fkey(id,name,display_name,email), recipient:profiles!lead_comments_to_profile_id_fkey(id,name,display_name,email)"
-    )
+    .select("*")
     .eq("lead_id", id)
     .order("created_at", { ascending: true });
-  type CommentRow = {
-    id: string;
-    author_id: string | null;
-    to_profile_id: string | null;
-    body: string;
-    created_at: string;
-    read_at: string | null;
-    author: Pick<Profile, "id" | "name" | "display_name" | "email"> | null;
-    recipient: Pick<Profile, "id" | "name" | "display_name" | "email"> | null;
-  };
-  const comments: LeadCommentView[] = ((commentRows as unknown as CommentRow[]) ?? []).map((c) => ({
+  const rawComments = (commentRows as unknown as LeadComment[]) ?? [];
+  const nameIds = Array.from(
+    new Set(rawComments.flatMap((c) => [c.author_id, c.to_profile_id]).filter((x): x is string => !!x))
+  );
+  const nameMap = new Map<string, string>();
+  if (nameIds.length > 0) {
+    const { data: names } = await supabase.rpc("profile_display_names", { p_ids: nameIds });
+    for (const n of (names as { id: string; label: string }[] | null) ?? []) nameMap.set(n.id, n.label);
+  }
+  const comments: LeadCommentView[] = rawComments.map((c) => ({
     id: c.id,
     author_id: c.author_id,
-    author_name: c.author ? nameFor(c.author) : "不明なメンバー",
+    author_name: c.author_id ? (nameMap.get(c.author_id) ?? "不明なメンバー") : "不明なメンバー",
     to_profile_id: c.to_profile_id,
-    to_name: c.to_profile_id ? (c.recipient ? nameFor(c.recipient) : "不明なメンバー") : null,
+    to_name: c.to_profile_id ? (nameMap.get(c.to_profile_id) ?? "不明なメンバー") : null,
     body: c.body,
     created_at: c.created_at,
     read_at: c.read_at,
   }));
-  const { data: recipientRows } = await supabase
-    .from("profiles")
-    .select("id,name,display_name,email,role")
-    .neq("id", me.id)
-    .in("role", ["admin", "teamlead", "staff"])
-    .order("name");
-  const recipients = ((recipientRows as unknown as Pick<Profile, "id" | "name" | "display_name" | "email">[]) ?? []).map(
-    (p) => ({ id: p.id, name: nameFor(p) })
-  );
+  // 宛先に選べる人。MAG（社内）は全メンバー、ゲストはMAGのメンバーと自社のメンバーだけ
+  const { data: recipientRows } = await supabase.rpc("mentionable_profiles");
+  const recipients = ((recipientRows as { id: string; label: string }[] | null) ?? []).map((r) => ({
+    id: r.id,
+    name: r.label,
+  }));
 
   return (
     <LeadDetailClient
@@ -149,17 +143,14 @@ export default async function LeadDetailPage({
       nextId={adjacent?.nextId ?? null}
       queryString={queryString}
       commentsSlot={
-        // コメントは社内メンバー用。ゲスト（販売店）のアカウントには表示しない
-        isGuestRole(me.role) ? null : (
-          <LeadComments
-            leadId={id}
-            leadStatus={(lead as Lead).status}
-            comments={comments}
-            recipients={recipients}
-            meId={me.id}
-            isAdmin={canManage}
-          />
-        )
+        <LeadComments
+          leadId={id}
+          leadStatus={(lead as Lead).status}
+          comments={comments}
+          recipients={recipients}
+          meId={me.id}
+          isAdmin={canManage}
+        />
       }
     />
   );

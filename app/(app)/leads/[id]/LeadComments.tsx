@@ -89,7 +89,7 @@ export default function LeadComments({
     <section className={`${cardCls} p-5`}>
       <h2 className={`mb-1 ${sectionTitleCls}`}>コメント</h2>
       <p className="mb-4 text-xs text-slate-400">
-        前確の依頼や引き継ぎ、前確した時の状況などを残せます。全員が読めます。宛先を選ぶと、その人の画面に未読の目印が出ます。
+        前確の依頼や引き継ぎ、前確した時の状況などを残せます。このリードを見られる人が読めます。宛先を選ぶと、その人の画面に未読の目印が出ます。
       </p>
 
       {leadStatus === "前確待ち" && (
