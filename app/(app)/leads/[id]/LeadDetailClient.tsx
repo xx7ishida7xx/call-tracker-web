@@ -791,7 +791,7 @@ export default function LeadDetailClient({
       <section className={`${cardCls} p-5`}>
         <h2 className={`mb-1 ${sectionTitleCls}`}>添付ファイル</h2>
         <p className="mb-4 text-xs text-slate-400">
-          診断レポートやアポ表のファイルを、点線の枠にドラッグ＆ドロップするだけで取り込めます。過去分もここであわせて確認できます。
+          診断レポートやアポ表のファイルを、点線の枠にドラッグ＆ドロップするか、「ファイルを選んで…アップロード」ボタンで取り込めます（スマホはボタンをお使いください）。過去分もここであわせて確認できます。
         </p>
         <div className="grid gap-6 sm:grid-cols-2">
           {ATTACHMENT_CATEGORIES.map((category) => (
@@ -897,15 +897,6 @@ function AttachmentGroup({
           className={inputCls}
         />
         <div
-          role="button"
-          tabIndex={0}
-          onClick={() => !isPending && fileInputRef.current?.click()}
-          onKeyDown={(e) => {
-            if ((e.key === "Enter" || e.key === " ") && !isPending) {
-              e.preventDefault();
-              fileInputRef.current?.click();
-            }
-          }}
           onDragOver={(e) => {
             e.preventDefault();
             if (!isPending) setDragging(true);
@@ -920,19 +911,25 @@ function AttachmentGroup({
             if (isPending) return;
             uploadFiles(e.dataTransfer.files);
           }}
-          className={`flex cursor-pointer flex-col items-center justify-center gap-1 rounded-lg border-2 border-dashed px-3 py-6 text-center transition ${
-            dragging
-              ? "border-orange-400 bg-orange-50 text-orange-700"
-              : "border-slate-300 bg-white text-slate-500 hover:border-orange-300 hover:bg-orange-50/50"
+          className={`flex flex-col items-center justify-center gap-1 rounded-lg border-2 border-dashed px-3 py-6 text-center transition ${
+            dragging ? "border-orange-400 bg-orange-50 text-orange-700" : "border-slate-300 bg-white text-slate-500"
           } ${isPending ? "cursor-wait opacity-60" : ""}`}
         >
           <span className="text-sm font-semibold">
             {isPending ? "アップロード中…" : dragging ? "ここで離すと取り込みます" : `${category}のファイルをここにドラッグ＆ドロップ`}
           </span>
           <span className="text-xs text-slate-400">
-            {progress ?? "またはクリックしてファイルを選択（複数まとめて可・1ファイル25MBまで）"}
+            {progress ?? "（複数まとめて可・1ファイル25MBまで）"}
           </span>
         </div>
+        <button
+          type="button"
+          disabled={isPending}
+          onClick={() => fileInputRef.current?.click()}
+          className={`self-start ${btnSecondarySmCls}`}
+        >
+          {isPending ? "処理中…" : `＋ ファイルを選んで${category}をアップロード`}
+        </button>
         <input
           ref={fileInputRef}
           type="file"
