@@ -10,6 +10,8 @@ type ImportResult = {
   imported: number;
   skippedDuplicate: number;
   skippedNoPhone: number;
+  skippedNoCompany: number;
+  skippedNoAddress: number;
   unmatchedHeaders: string[];
   assignedByPerson: number;
   assignedByCompany: number;
@@ -96,7 +98,8 @@ export default function ImportClient({ me, roster }: { me: Profile; roster: Prof
 
       <p className="text-sm text-slate-500">
         列名は「会社名, 都道府県, 住所, 電話番号, メールアドレス, URL, 元CMS, 業種, 業種詳細, 担当者, HPの状態」に対応しています（順不同）。
-        電話番号が空の行は、架電対象として使えないため取り込みの対象外になります。
+        「① 新規リストの読み込み」では、会社名・電話番号・住所の3つがそろっていない行は、リストとして使えないため取り込まれません（かずきくんの補完が終わったものだけを入れてください）。
+        「② 既存リストの更新」は、電話番号が一致した既存リードを更新するだけなので、電話番号以外の列は空欄でも構いません。
       </p>
 
       {/* モード切り替え：新規にリードを足すのか、エクスポートしたCSVを直して既存のリードを更新するのか */}
@@ -208,6 +211,8 @@ export default function ImportClient({ me, roster }: { me: Profile; roster: Prof
               {importResult.total} 件中 {importResult.imported} 件を取り込みました
               {importResult.skippedDuplicate > 0 && `（電話番号重複で ${importResult.skippedDuplicate} 件をスキップ）`}
               {importResult.skippedNoPhone > 0 && `（電話番号なしで ${importResult.skippedNoPhone} 件をスキップ）`}
+              {importResult.skippedNoCompany > 0 && `（会社名なしで ${importResult.skippedNoCompany} 件をスキップ）`}
+              {importResult.skippedNoAddress > 0 && `（住所なしで ${importResult.skippedNoAddress} 件をスキップ）`}
             </p>
             {(importResult.assignedByPerson > 0 || importResult.assignedByCompany > 0) && (
               <p className="mt-1">

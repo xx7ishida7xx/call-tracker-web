@@ -800,15 +800,22 @@ export async function importLeadsCsv(csvText: string, assignTo: string | null) {
   if (!me) throw new Error("ログインが必要です。");
 
   const { rows: parsedRows, unmatchedHeaders } = parseLeadsCsv(csvText);
-  // 電話番号が空の行は、架電対象として使えないためそもそも取り込み対象にしない
+  // 取り込みの原則：会社名・電話番号・住所の3つがそろっていない行は「リスト」ではないので取り込まない。
+  //   （補完前のデータが誤って入るのを防ぐ。1行につき最初に当てはまる理由で数える）
   const skippedNoPhone = parsedRows.filter((r) => !r.phone.trim()).length;
-  const rows = parsedRows.filter((r) => r.phone.trim());
+  const skippedNoCompany = parsedRows.filter((r) => r.phone.trim() && !r.company.trim()).length;
+  const skippedNoAddress = parsedRows.filter(
+    (r) => r.phone.trim() && r.company.trim() && !r.address.trim()
+  ).length;
+  const rows = parsedRows.filter((r) => r.phone.trim() && r.company.trim() && r.address.trim());
   if (rows.length === 0) {
     return {
       total: parsedRows.length,
       imported: 0,
       skippedDuplicate: 0,
       skippedNoPhone,
+      skippedNoCompany,
+      skippedNoAddress,
       unmatchedHeaders,
       assignedByPerson: 0,
       assignedByCompany: 0,
@@ -900,6 +907,8 @@ export async function importLeadsCsv(csvText: string, assignTo: string | null) {
     imported,
     skippedDuplicate: rows.length - toInsert.length,
     skippedNoPhone,
+    skippedNoCompany,
+    skippedNoAddress,
     unmatchedHeaders,
     assignedByPerson,
     assignedByCompany,
