@@ -338,6 +338,7 @@ export default function LeadDetailClient({
               <div className="flex gap-1.5">
                 <input className={inputCls} value={form.phone} onChange={(e) => setField("phone", e.target.value)} />
                 <QuickCallLink phone={form.phone} />
+                <QuickPhoneSearchLink phone={form.phone} />
               </div>
             </Field>
             <Field label="住所" full>
@@ -1243,6 +1244,22 @@ function QuickOpenLink({ url }: { url: string }) {
     <a href={href} target="_blank" rel="noopener noreferrer" title="このURLを開く" className={quickLinkCls}>
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4">
         <path d="M14 4h6v6M10 14 20 4M18 13v5a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h5" />
+      </svg>
+    </a>
+  );
+}
+
+// 電話番号の隣に表示する「電話番号で検索」リンク。Google検索で電話番号を完全一致（引用符つき）で
+// 検索した結果を新しいタブで開きます。
+function QuickPhoneSearchLink({ phone }: { phone: string }) {
+  const clean = phone.trim();
+  if (!clean) return null;
+  const href = `https://www.google.com/search?q=${encodeURIComponent(`"${clean}"`)}`;
+  return (
+    <a href={href} target="_blank" rel="noopener noreferrer" title="この電話番号でGoogle検索する" className={quickLinkCls}>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4">
+        <circle cx="11" cy="11" r="6.5" />
+        <path d="m20 20-4.2-4.2" />
       </svg>
     </a>
   );
