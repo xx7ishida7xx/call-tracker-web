@@ -191,8 +191,27 @@ export default async function LeadsPage({ searchParams }: { searchParams: Promis
   const [{ count: myCallsToday }, { count: myEffectiveToday }, { count: myAppointmentsToday }] = await Promise.all([
     myCallsBase(),
     myCallsBase().eq("connected", true),
-    myCallsBase().eq("appointment", true),
+    // アポの成績は、アポの成績が付く人（前確待ちからのアポ確定では、前確依頼をした人）で数える
+    supabase
+      .from("calls")
+      .select("id", { count: "exact", head: true })
+      .eq("appointment_credit_to", me.id)
+      .eq("appointment", true)
+      .gte("called_at", todayRange.start)
+      .lt("called_at", todayRange.end),
   ]);
+
+  // 自分宛の未読コメントがあるリード（一覧の会社名の横に「自分宛」の目印を出す）。コメントは社内メンバー用
+  const unreadLeadIds = new Set<string>();
+  if (!isGuestRole(me.role)) {
+    const { data: unreadRows } = await supabase
+      .from("lead_comments")
+      .select("lead_id")
+      .eq("to_profile_id", me.id)
+      .is("read_at", null)
+      .limit(500);
+    for (const r of (unreadRows ?? []) as { lead_id: string }[]) unreadLeadIds.add(r.lead_id);
+  }
 
   return (
     <div className="flex flex-col gap-4">
@@ -436,6 +455,9 @@ export default async function LeadsPage({ searchParams }: { searchParams: Promis
                       <Link href={leadHref(lead.id)} className="font-medium text-slate-900 hover:text-orange-600 hover:underline">
                         {lead.company || "（会社名未登録）"}
                       </Link>
+                      {unreadLeadIds.has(lead.id) && (
+                        <span className="ml-2 rounded-full bg-rose-500 px-2 py-0.5 text-[11px] font-bold text-white">自分宛のメッセージ</span>
+                      )}
                     </td>
                     <td className="whitespace-nowrap px-4 py-2.5 align-top text-slate-600">{lead.pref}</td>
                     <td className="whitespace-nowrap px-4 py-2.5 align-top text-slate-600">

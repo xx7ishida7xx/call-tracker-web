@@ -72,6 +72,8 @@ import {
 
 type CallWithCaller = Call & {
   caller: Pick<Profile, "id" | "name" | "display_name" | "email"> | null;
+  // アポの成績が付く人（前確待ちからのアポ確定では、前確依頼をした人）
+  credit?: Pick<Profile, "id" | "name" | "display_name" | "email"> | null;
 };
 
 // 添付ファイル1件分の表示用データ。ダウンロードURLは非公開バケットの署名付きURLで、
@@ -112,6 +114,7 @@ export default function LeadDetailClient({
   prevId,
   nextId,
   queryString,
+  commentsSlot,
 }: {
   lead: Lead;
   calls: CallWithCaller[];
@@ -125,6 +128,8 @@ export default function LeadDetailClient({
   nextId: string | null;
   // 一覧画面から引き継いだ絞り込み条件（一覧へ戻る／前へ／次へのリンクに引き継ぐ）
   queryString: string;
+  // 通話履歴の下に表示するコメント（チャット）欄。サーバー側（page.tsx）で作ったものを受け取る
+  commentsSlot?: React.ReactNode;
 }) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
@@ -226,7 +231,7 @@ export default function LeadDetailClient({
   }
 
   // 通話記録フォーム：結果は「つながらなかった／つながった／その他／訪問結果」の
-  // 4グループから1つだけ選ぶ形式。結果を選ぶと有効架電・アポ獲得・ステータスが
+  // 4グループから1つだけ選ぶ形式。結果を選ぶと有効架電・アポ確定・ステータスが
   // 自動で連動するため、それらを個別に指定する項目はない。
   const [callForm, setCallForm] = useState(EMPTY_CALL_FORM);
   const [callError, setCallError] = useState<string | null>(null);
@@ -304,11 +309,17 @@ export default function LeadDetailClient({
     });
   }
 
-  // 結果を選んだ後、有効架電・アポ獲得・ステータスがどう連動するかのプレビュー文
+  // 結果を選んだ後、有効架電・アポ確定・ステータスがどう連動するかのプレビュー文
   function outcomeSummary(outcome: CallOutcome): string {
     const parts = [outcome.connected ? "有効架電：ON" : "有効架電：OFF"];
-    if (outcome.appointment) parts.push("アポ獲得：ON");
+    if (outcome.appointment) parts.push("アポ確定：ON");
     parts.push(outcome.nextStatus ? `ステータス → ${outcome.nextStatus}` : "ステータス：変更なし");
+    // 前確待ちからのアポ確定は、アポの成績・担当者が前確依頼をした人のままになることを知らせる
+    if (outcome.appointment && form.status === "前確待ち") {
+      const requester = calls.find((c) => c.result === "前確依頼");
+      const requesterName = requester?.caller ? nameFor(requester.caller) : null;
+      if (requesterName) parts.push(`アポの成績は前確依頼をした${requesterName}に付きます`);
+    }
     return parts.join("／");
   }
 
@@ -787,6 +798,9 @@ export default function LeadDetailClient({
         )}
       </section>
 
+      {/* コメント（チャット）。前確の依頼・引き継ぎなど、全員に残すメモ */}
+      {commentsSlot}
+
       {/* 添付ファイル（診断レポート／アポ表） */}
       <section className={`${cardCls} p-5`}>
         <h2 className={`mb-1 ${sectionTitleCls}`}>添付ファイル</h2>
@@ -1105,7 +1119,12 @@ function CallHistoryItem({
             <span className="rounded-full bg-sky-100 px-2 py-0.5 font-semibold text-sky-700">有効架電</span>
           )}
           {call.appointment && (
-            <span className="rounded-full bg-amber-100 px-2 py-0.5 font-semibold text-amber-800">アポ獲得</span>
+            <span className="rounded-full bg-amber-100 px-2 py-0.5 font-semibold text-amber-800">アポ確定</span>
+          )}
+          {call.appointment && call.credit && call.credit.id !== call.caller?.id && (
+            <span className="rounded-full bg-orange-100 px-2 py-0.5 font-semibold text-orange-700">
+              アポの成績：{nameFor(call.credit)}
+            </span>
           )}
           {call.hot && <span className="rounded-full bg-rose-100 px-2 py-0.5 font-semibold text-rose-700">激アツ!!</span>}
           {call.rank && (

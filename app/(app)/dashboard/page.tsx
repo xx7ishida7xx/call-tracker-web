@@ -109,7 +109,8 @@ export default async function DashboardPage({
     })
   );
 
-  // 本日の担当者別：架電数・有効架電数・アポ獲得数（架電の記録者 caller_id ごと）
+  // 本日の担当者別：架電数・有効架電数（架電の記録者 caller_id ごと）と、アポ確定数（アポの成績が付く人 appointment_credit_to ごと。
+  // 前確待ちからのアポ確定は、前確依頼をした人の成績になる）
   const callsTodayByMember = await Promise.all(
     roster.map(async (m) => {
       const base = () =>
@@ -122,14 +123,20 @@ export default async function DashboardPage({
       const [{ count: calls }, { count: effective }, { count: appointments }] = await Promise.all([
         base(),
         base().eq("connected", true),
-        base().eq("appointment", true),
+        supabase
+          .from("calls")
+          .select("id", { count: "exact", head: true })
+          .eq("appointment_credit_to", m.id)
+          .eq("appointment", true)
+          .gte("called_at", today.start)
+          .lt("called_at", today.end),
       ]);
       return { member: m, calls: calls ?? 0, effective: effective ?? 0, appointments: appointments ?? 0 };
     })
   );
   const callsTodayRanked = callsTodayByMember
-    .filter((r) => r.calls > 0)
-    .sort((a, b) => b.calls - a.calls);
+    .filter((r) => r.calls > 0 || r.appointments > 0)
+    .sort((a, b) => b.calls - a.calls || b.appointments - a.appointments);
 
   return (
     <div className="flex flex-col gap-6">

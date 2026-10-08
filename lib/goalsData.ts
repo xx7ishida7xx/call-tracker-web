@@ -74,16 +74,25 @@ export async function getMonthActuals(
   if (profileIds.length > 0) {
     const { data: callRows } = await supabase
       .from("calls")
-      .select("called_at, appointment")
+      .select("called_at")
       .in("caller_id", profileIds)
       .gte("called_at", start)
       .lt("called_at", end);
-    for (const row of (callRows ?? []) as { called_at: string; appointment: boolean }[]) {
+    for (const row of (callRows ?? []) as { called_at: string }[]) {
       const key = toDateKey(row.called_at);
       dailyCallCounts.set(key, (dailyCallCounts.get(key) ?? 0) + 1);
       callsTotal += 1;
-      if (row.appointment) appointmentTotal += 1;
     }
+
+    // アポ件数は、アポの成績が付く人（前確待ちからのアポ確定では、前確依頼をした人）で数える
+    const { count: apoCount } = await supabase
+      .from("calls")
+      .select("id", { count: "exact", head: true })
+      .in("appointment_credit_to", profileIds)
+      .eq("appointment", true)
+      .gte("called_at", start)
+      .lt("called_at", end);
+    appointmentTotal = apoCount ?? 0;
 
     const { count } = await supabase
       .from("leads")

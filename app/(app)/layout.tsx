@@ -1,10 +1,12 @@
 import { redirect } from "next/navigation";
 import { getCurrentProfile } from "@/lib/auth";
-import { canManageMembers, nameFor, ROLE_LABEL } from "@/lib/types";
+import { canManageMembers, isGuestRole, nameFor, ROLE_LABEL } from "@/lib/types";
+import { createClient } from "@/lib/supabase/server";
 import { signOut } from "@/app/actions";
 import Sidebar, { TopBarNav, type NavItem } from "./NavBar";
 import RecallReminder from "./RecallReminder";
 import SelfPasswordReset from "./SelfPasswordReset";
+import UnreadMessagesWatcher from "./UnreadMessagesWatcher";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const me = await getCurrentProfile();
@@ -13,11 +15,27 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   const canManage = canManageMembers(me);
   const canImport = me.role === "admin" || me.role === "teamlead";
 
+  // 自分宛の未読コメントの件数（コメントは社内メンバー用なので、ゲストには出さない）
+  const showMessages = !isGuestRole(me.role);
+  let unreadMessages = 0;
+  if (showMessages) {
+    const supabase = await createClient();
+    const { count } = await supabase
+      .from("lead_comments")
+      .select("id", { count: "exact", head: true })
+      .eq("to_profile_id", me.id)
+      .is("read_at", null);
+    unreadMessages = count ?? 0;
+  }
+
   // 「管理者メニュー」はオーナー・管理者だけに表示されるグループです。
   // スタッフ用の画面と管理者用の画面がサイドバー上でひと目で区別できるようにしています。
   const navItems: NavItem[] = [
     { href: "/leads", label: "リード一覧", icon: "list" },
     { href: "/goals", label: "目標・稼働日", icon: "target" },
+    ...(showMessages
+      ? [{ href: "/messages", label: "自分宛のメッセージ", icon: "mail" as const, badge: unreadMessages }]
+      : []),
     ...(canImport ? [{ href: "/import", label: "CSVインポート", icon: "upload" as const, group: "データ管理" }] : []),
     ...(canManage
       ? [
@@ -31,7 +49,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
 
   return (
     <div className="min-h-screen bg-orange-50 sm:flex">
-      {/* デスクトップ:左側の縦型ナビゲーション(濃色) */}
+      {/* デスクトップ：左側の縦型ナビゲーション（濃色） */}
       <aside className="hidden sm:sticky sm:top-0 sm:flex sm:h-screen sm:w-60 sm:shrink-0 sm:flex-col sm:bg-slate-900">
         <div className="flex min-w-0 items-center gap-2 px-5 py-5">
           {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -70,7 +88,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         </div>
       </aside>
 
-      {/* モバイル:上部バー(濃色) */}
+      {/* モバイル：上部バー（濃色） */}
       <header className="sticky top-0 z-10 flex flex-col bg-slate-900 sm:hidden">
         <div className="flex items-center gap-2 px-4 py-3">
           {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -100,6 +118,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       </div>
 
       <RecallReminder meId={me.id} />
+      {showMessages && <UnreadMessagesWatcher meId={me.id} initialCount={unreadMessages} />}
     </div>
   );
 }

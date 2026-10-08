@@ -152,6 +152,7 @@ export interface Call {
   recall_at: string | null;
   recall_target: string | null;
   appointment: boolean;
+  appointment_credit_to: string | null; // アポ件数の成績が付く人（前確待ちからのアポ確定では、前確依頼をした人）
   connected: boolean; // 有効架電（担当者と話せた）かどうか
   notes: string;
   rank: string | null; // 通話ごとの見込み度ランク（A/B/C/D、未選択はnull）
@@ -197,7 +198,7 @@ export type CallResultGroup = (typeof CALL_RESULT_GROUP_ORDER)[number];
 
 export const CALL_RESULT_GROUPS: Record<CallResultGroup, readonly string[]> = {
   つながらなかった: ["留守", "廃業", "再コール"],
-  つながった: ["フロントNG", "代表NG", "追わない", "再コール", "前確依頼", "前確NG", "アポ成立", "アポ禁"],
+  つながった: ["フロントNG", "代表NG", "追わない", "再コール", "前確依頼", "前確NG", "アポ確定", "アポ禁"],
   その他: ["結果待ち", "キャンセル"],
   訪問結果: ["受注", "追客", "検討", "第三者商談", "先々", "失注", "BK"],
 };
@@ -209,7 +210,8 @@ export const CALL_RESULT_GROUPS: Record<CallResultGroup, readonly string[]> = {
 // ステータス自動連動（2026-10-02 見直し）：
 //   つながらなかった：留守→架電中／廃業→対象外／再コール→架電中
 //   つながった：フロントNG・代表NG・追わない→コールアウト／再コール→見込み／
-//              前確依頼→前確待ち／前確NG→前確NG／アポ成立→アポ獲得／アポ禁→アポ禁
+//              前確依頼→前確待ち／前確NG→前確NG／アポ確定→アポ確定／アポ禁→アポ禁
+//   （前確待ちのリードを、前確した人が「アポ確定」にしても、アポの成績は前確依頼をした人に付く）
 //   その他：結果待ち→変更なし／キャンセル→コールアウト
 //   訪問結果：受注→成約／追客・検討・第三者商談・先々→変更なし／失注→コールアウト／BK→BK
 export const CALL_RESULT_OUTCOME: Record<CallResultGroup, Record<string, CallOutcome>> = {
@@ -225,7 +227,7 @@ export const CALL_RESULT_OUTCOME: Record<CallResultGroup, Record<string, CallOut
     再コール: { connected: true, appointment: false, nextStatus: "見込み" },
     前確依頼: { connected: true, appointment: false, nextStatus: "前確待ち" },
     前確NG: { connected: true, appointment: false, nextStatus: "前確NG" },
-    アポ成立: { connected: true, appointment: true, nextStatus: "アポ獲得" },
+    アポ確定: { connected: true, appointment: true, nextStatus: "アポ確定" },
     アポ禁: { connected: true, appointment: false, nextStatus: "アポ禁" },
   },
   その他: {
@@ -266,7 +268,7 @@ export const LEAD_STATUSES = [
   "見込み",
   "前確待ち",
   "前確NG",
-  "アポ獲得",
+  "アポ確定",
   "成約",
   "コールアウト",
   "BK",
@@ -342,4 +344,17 @@ export function canViewProfileGoals(me: Profile | null, target: Profile): boolea
 export function manageableProfiles(me: Profile | null, roster: Profile[]): Profile[] {
   if (!me) return [];
   return roster.filter((p) => canManageProfileGoals(me, p));
+}
+
+// ==========================================================================
+// リードのコメント（チャット）。宛先を選ぶと、宛先の人に未読の目印が出る。
+// ==========================================================================
+export interface LeadComment {
+  id: string;
+  lead_id: string;
+  author_id: string | null;
+  to_profile_id: string | null;
+  body: string;
+  created_at: string;
+  read_at: string | null;
 }

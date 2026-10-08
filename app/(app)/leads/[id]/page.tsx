@@ -6,6 +6,7 @@ import { getAdjacentLeadIds, searchParamsToQueryString, type LeadSearchParams } 
 import { checkGuestRateLimit } from "@/lib/rateLimit";
 import { cardCls, errorCls } from "@/lib/ui";
 import LeadDetailClient, { type LeadAttachmentView } from "./LeadDetailClient";
+import LeadComments, { type LeadCommentView } from "./LeadComments";
 
 // 添付ファイルのダウンロードリンクは、非公開バケットなので毎回署名付きURLを発行する
 // （有効期限1時間。期限が切れてもページを開き直せば新しいURLが発行される）
@@ -54,7 +55,9 @@ export default async function LeadDetailPage({
 
   const { data: calls } = await supabase
     .from("calls")
-    .select("*, caller:profiles!calls_caller_id_fkey(id,name,display_name,email)")
+    .select(
+      "*, caller:profiles!calls_caller_id_fkey(id,name,display_name,email), credit:profiles!calls_appointment_credit_to_fkey(id,name,display_name,email)"
+    )
     .eq("lead_id", id)
     .order("called_at", { ascending: false });
 
@@ -95,6 +98,44 @@ export default async function LeadDetailPage({
     })
   );
 
+  // コメント（チャット）。宛先に選べるのは、自分に見えるメンバー（自分以外）
+  const { data: commentRows } = await supabase
+    .from("lead_comments")
+    .select(
+      "*, author:profiles!lead_comments_author_id_fkey(id,name,display_name,email), recipient:profiles!lead_comments_to_profile_id_fkey(id,name,display_name,email)"
+    )
+    .eq("lead_id", id)
+    .order("created_at", { ascending: true });
+  type CommentRow = {
+    id: string;
+    author_id: string | null;
+    to_profile_id: string | null;
+    body: string;
+    created_at: string;
+    read_at: string | null;
+    author: Pick<Profile, "id" | "name" | "display_name" | "email"> | null;
+    recipient: Pick<Profile, "id" | "name" | "display_name" | "email"> | null;
+  };
+  const comments: LeadCommentView[] = ((commentRows as unknown as CommentRow[]) ?? []).map((c) => ({
+    id: c.id,
+    author_id: c.author_id,
+    author_name: c.author ? nameFor(c.author) : "不明なメンバー",
+    to_profile_id: c.to_profile_id,
+    to_name: c.to_profile_id ? (c.recipient ? nameFor(c.recipient) : "不明なメンバー") : null,
+    body: c.body,
+    created_at: c.created_at,
+    read_at: c.read_at,
+  }));
+  const { data: recipientRows } = await supabase
+    .from("profiles")
+    .select("id,name,display_name,email,role")
+    .neq("id", me.id)
+    .in("role", ["admin", "teamlead", "staff"])
+    .order("name");
+  const recipients = ((recipientRows as unknown as Pick<Profile, "id" | "name" | "display_name" | "email">[]) ?? []).map(
+    (p) => ({ id: p.id, name: nameFor(p) })
+  );
+
   return (
     <LeadDetailClient
       lead={lead as Lead}
@@ -107,6 +148,19 @@ export default async function LeadDetailPage({
       prevId={adjacent?.prevId ?? null}
       nextId={adjacent?.nextId ?? null}
       queryString={queryString}
+      commentsSlot={
+        // コメントは社内メンバー用。ゲスト（販売店）のアカウントには表示しない
+        isGuestRole(me.role) ? null : (
+          <LeadComments
+            leadId={id}
+            leadStatus={(lead as Lead).status}
+            comments={comments}
+            recipients={recipients}
+            meId={me.id}
+            isAdmin={canManage}
+          />
+        )
+      }
     />
   );
 }

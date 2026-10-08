@@ -44,7 +44,7 @@ export const STATUS_BADGE_CLS: Record<string, string> = {
   見込み: "bg-teal-100 text-teal-700",
   前確待ち: "bg-indigo-100 text-indigo-700",
   前確NG: "bg-pink-100 text-pink-700",
-  アポ獲得: "bg-amber-100 text-amber-800",
+  アポ確定: "bg-amber-100 text-amber-800",
   成約: "bg-emerald-100 text-emerald-700",
   コールアウト: "bg-slate-100 text-slate-500",
   BK: "bg-violet-100 text-violet-700",

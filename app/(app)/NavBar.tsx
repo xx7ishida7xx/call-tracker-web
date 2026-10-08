@@ -3,9 +3,19 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
-export type IconName = "list" | "chart" | "users" | "upload" | "target";
+export type IconName = "list" | "chart" | "users" | "upload" | "target" | "mail";
 
-export type NavItem = { href: string; label: string; icon: IconName; group?: string };
+// badge：項目の右に赤い数字で出す件数（未読のメッセージなど。0や未指定なら出さない）
+export type NavItem = { href: string; label: string; icon: IconName; group?: string; badge?: number };
+
+function Badge({ count, className = "" }: { count?: number; className?: string }) {
+  if (!count || count <= 0) return null;
+  return (
+    <span className={`flex h-5 min-w-5 items-center justify-center rounded-full bg-rose-500 px-1.5 text-[11px] font-bold leading-none text-white ${className}`}>
+      {count > 99 ? "99+" : count}
+    </span>
+  );
+}
 
 function Icon({ name, className }: { name: IconName; className?: string }) {
   const common = {
@@ -40,6 +50,13 @@ function Icon({ name, className }: { name: IconName; className?: string }) {
       return (
         <svg {...common}>
           <path d="M4 16v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2M7 9l5-5 5 5M12 4v12" />
+        </svg>
+      );
+    case "mail":
+      return (
+        <svg {...common}>
+          <rect x="3" y="5" width="18" height="14" rx="2" />
+          <path d="m3 7 9 6 9-6" />
         </svg>
       );
     case "target":
@@ -81,6 +98,7 @@ export default function Sidebar({ items }: { items: NavItem[] }) {
             >
               <Icon name={item.icon} className={`h-[18px] w-[18px] shrink-0 ${active ? "text-orange-400" : "text-slate-400"}`} />
               {item.label}
+              <Badge count={item.badge} className="ml-auto" />
             </Link>
           </div>
         );
@@ -111,6 +129,7 @@ export function TopBarNav({ items }: { items: NavItem[] }) {
             >
               <Icon name={item.icon} className="h-3.5 w-3.5 shrink-0" />
               {item.label}
+              <Badge count={item.badge} />
             </Link>
           </div>
         );

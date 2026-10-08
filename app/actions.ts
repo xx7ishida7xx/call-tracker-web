@@ -87,6 +87,22 @@ export async function addCall(
     .maybeSingle();
   const autoAssign = !!leadBefore && !leadBefore.assigned_to;
 
+  // アポの成績が付く人。通常は通話した本人。
+  // 前確待ちのリードを、前確した人が「アポ確定」にした場合は、前確依頼をした人（アポを取った人）の成績にする。
+  // 担当者（leads.assigned_to）は変えないので、担当者もそのまま。
+  let appointmentCreditTo: string = me.id;
+  if (payload.appointment && leadBefore?.status === "前確待ち") {
+    const { data: requestCall } = await supabase
+      .from("calls")
+      .select("caller_id")
+      .eq("lead_id", leadId)
+      .eq("result", "前確依頼")
+      .order("called_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    appointmentCreditTo = requestCall?.caller_id ?? leadBefore.assigned_to ?? me.id;
+  }
+
   const { error: callError } = await supabase.from("calls").insert({
     lead_id: leadId,
     caller_id: me.id,
@@ -97,6 +113,7 @@ export async function addCall(
     result_group: payload.result_group,
     notes: payload.notes,
     appointment: payload.appointment,
+    appointment_credit_to: appointmentCreditTo,
     connected: payload.connected,
     recall_at: payload.recall_at,
     recall_target: payload.recall_target,
@@ -1198,4 +1215,60 @@ export async function saveWorkDayOverrides(profileId: string | null, month: stri
 
   revalidatePath("/goals");
   revalidatePath("/goals/calendar");
+}
+
+
+// ---------------------------------------------------------------------------
+// リードのコメント（チャット）
+//   宛先（任意）を選ぶと、宛先の人の画面に未読の目印が出る。
+//   宛先の人がそのリードを開くと既読になる。
+// ---------------------------------------------------------------------------
+export async function addLeadComment(leadId: string, body: string, toProfileId: string | null) {
+  const supabase = await createClient();
+  const me = await getCurrentProfile();
+  if (!me) throw new Error("ログインが必要です。");
+
+  const text = body.trim();
+  if (!text) throw new Error("コメントを入力してください。");
+  if (text.length > 2000) throw new Error("コメントが長すぎます（2,000文字までです）。");
+
+  const { error } = await supabase.from("lead_comments").insert({
+    lead_id: leadId,
+    author_id: me.id,
+    to_profile_id: toProfileId && toProfileId !== me.id ? toProfileId : null,
+    body: text,
+  });
+  if (error) throw new Error(error.message);
+
+  revalidatePath(`/leads/${leadId}`);
+}
+
+export async function deleteLeadComment(commentId: string, leadId: string) {
+  const supabase = await createClient();
+  const me = await getCurrentProfile();
+  if (!me) throw new Error("ログインが必要です。");
+
+  const { error } = await supabase.from("lead_comments").delete().eq("id", commentId);
+  if (error) throw new Error(error.message);
+
+  revalidatePath(`/leads/${leadId}`);
+  revalidatePath("/", "layout");
+}
+
+// このリードの、自分宛の未読コメントを既読にする（リード詳細を開いたときに呼ぶ）。
+// 画面左メニューの未読の件数も更新する。
+export async function markLeadCommentsRead(leadId: string) {
+  const supabase = await createClient();
+  const me = await getCurrentProfile();
+  if (!me) return;
+
+  const { error } = await supabase
+    .from("lead_comments")
+    .update({ read_at: new Date().toISOString() })
+    .eq("lead_id", leadId)
+    .eq("to_profile_id", me.id)
+    .is("read_at", null);
+  if (error) throw new Error(error.message);
+
+  revalidatePath("/", "layout");
 }
