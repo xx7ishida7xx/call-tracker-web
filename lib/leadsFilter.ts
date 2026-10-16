@@ -130,6 +130,52 @@ export function applyLeadFilters<Q extends { eq: any; ilike: any; in: any; gte: 
   return q;
 }
 
+// 指定したリードが絞り込み条件から外れている場合に、一覧の並び順（created_at降順 → id降順）上の
+// 位置を基準に、条件に合う「前・次」のリードIDを求める。
+// 一覧の中での何番目か（index/total）は求めないため、-1 と 0 を返す（画面では前後のIDしか使っていない）。
+async function getAdjacentLeadIdsByPosition(
+  supabase: SupabaseClient,
+  sp: LeadSearchParams,
+  currentLeadId: string,
+  genreList: string[],
+  prefList: string[],
+  cmsList: string[],
+  callLeadIds: string[] | null
+): Promise<{ prevId: string | null; nextId: string | null; index: number; total: number } | null> {
+  const { data: cur } = await supabase
+    .from("leads")
+    .select("id,created_at")
+    .eq("id", currentLeadId)
+    .maybeSingle();
+  if (!cur) return null;
+  const c = (cur as { id: string; created_at: string }).created_at;
+
+  // 次へ：並び順（新しい順）で、今のリードより後ろにある、条件に合う最初の1件
+  let nextQuery = supabase
+    .from("leads")
+    .select("id")
+    .or(`created_at.lt.${c},and(created_at.eq.${c},id.lt.${currentLeadId})`)
+    .order("created_at", { ascending: false })
+    .order("id", { ascending: false })
+    .limit(1);
+  nextQuery = applyLeadFilters(nextQuery, sp, genreList, prefList, cmsList, callLeadIds);
+
+  // 前へ：並び順（新しい順）で、今のリードより前にある、条件に合う最後の1件
+  let prevQuery = supabase
+    .from("leads")
+    .select("id")
+    .or(`created_at.gt.${c},and(created_at.eq.${c},id.gt.${currentLeadId})`)
+    .order("created_at", { ascending: true })
+    .order("id", { ascending: true })
+    .limit(1);
+  prevQuery = applyLeadFilters(prevQuery, sp, genreList, prefList, cmsList, callLeadIds);
+
+  const [{ data: nextRows }, { data: prevRows }] = await Promise.all([nextQuery, prevQuery]);
+  const nextId = ((nextRows ?? []) as { id: string }[])[0]?.id ?? null;
+  const prevId = ((prevRows ?? []) as { id: string }[])[0]?.id ?? null;
+  return { prevId, nextId, index: -1, total: 0 };
+}
+
 // 現在の絞り込み条件のもとで、指定したリードの「前・次」のリードIDを求める。
 export async function getAdjacentLeadIds(
   supabase: SupabaseClient,
@@ -150,7 +196,15 @@ export async function getAdjacentLeadIds(
   const { data } = await query;
   const ids = ((data ?? []) as { id: string }[]).map((r) => r.id);
   const index = ids.indexOf(currentLeadId);
-  if (index === -1) return null;
+  if (index === -1) {
+    // 今開いているリードが、絞り込み条件に当てはまらなくなっている場合の処理。
+    // 例：「見込み」で絞り込んだ一覧から開いて通話を記録すると、ステータスが変わって
+    //     条件から外れる（担当者や通話履歴の条件でも同じことが起きる）。
+    //     以前はここで「前後なし」を返していたため、「次へ」が押せなくなっていた。
+    //     そこで、一覧と同じ並び順（登録日時の新しい順 → ID降順）の中での今のリードの位置を基準に、
+    //     条件に合う直前・直後のリードを探す。
+    return getAdjacentLeadIdsByPosition(supabase, sp, currentLeadId, genreList, prefList, cmsList, callLeadIds);
+  }
   return {
     prevId: index > 0 ? ids[index - 1] : null,
     nextId: index < ids.length - 1 ? ids[index + 1] : null,
