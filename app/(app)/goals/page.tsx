@@ -344,9 +344,9 @@ export default async function GoalsPage({
             {formatMonthLabel(month)}の実績・目標
           </h2>
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-            <StatChip label="コール件数（目標/実績）" value={`${actuals.callsTotal.toLocaleString()} / ${totalCallTarget.toLocaleString()}`} />
-            <StatChip label="アポ件数（目標/実績）" value={`${actuals.appointmentTotal.toLocaleString()} / ${appointmentTarget.toLocaleString()}`} />
-            <StatChip label="契約件数（目標/実績）" value={`${actuals.contractTotal.toLocaleString()} / ${contractTarget.toLocaleString()}`} />
+            <StatChip label="コール件数（実績/目標）" value={`${actuals.callsTotal.toLocaleString()} / ${totalCallTarget.toLocaleString()}`} />
+            <StatChip label="アポ件数（実績/目標）" value={`${actuals.appointmentTotal.toLocaleString()} / ${appointmentTarget.toLocaleString()}`} />
+            <StatChip label="契約件数（実績/目標）" value={`${actuals.contractTotal.toLocaleString()} / ${contractTarget.toLocaleString()}`} />
             <StatChip label="残り稼働日" value={`${remainingWorkingDays} / ${totalWorkingDays}日`} />
           </div>
           {dailyPace !== null && remainingCallsNeeded > 0 && (
