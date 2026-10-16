@@ -13,6 +13,8 @@ export type LeadSearchParams = {
   phone_prefix?: string;
   rep?: string;
   credit_company?: string;
+  // 「担当者名あり」チェック（"1" のとき、担当者名（顧客側）が入力済みのリードだけに絞る）
+  has_contact?: string;
   status?: string;
   assignee?: string;
   genre?: string | string[];
@@ -95,6 +97,11 @@ export function applyLeadFilters<Q extends { eq: any; ilike: any; in: any; gte: 
     // 使っている（列名・パラメータ名は互換性のため変更していない）。
     const cc = sp.credit_company.trim().replace(/[%,]/g, "");
     q = q.ilike("credit_company", `%${cc}%`);
+  }
+  // 「担当者名あり」チェック：担当者名（顧客側）が空でないリードだけを出す。
+  // NULL と空文字の両方を「未入力」として除外する。
+  if (sp.has_contact === "1") {
+    q = q.not("credit_company", "is", null).not("credit_company", "eq", "");
   }
   if (sp.status) q = q.eq("status", sp.status);
   if (sp.assignee) q = q.eq("assigned_to", sp.assignee);

@@ -154,6 +154,7 @@ export default async function LeadsPage({ searchParams }: { searchParams: Promis
     if (sp.phone_prefix) params.set("phone_prefix", sp.phone_prefix);
     if (sp.rep) params.set("rep", sp.rep);
     if (sp.credit_company) params.set("credit_company", sp.credit_company);
+    if (sp.has_contact === "1") params.set("has_contact", "1");
     if (sp.status) params.set("status", sp.status);
     if (sp.assignee) params.set("assignee", sp.assignee);
     genreList.forEach((g) => params.append("genre", g));
@@ -338,10 +339,29 @@ export default async function LeadsPage({ searchParams }: { searchParams: Promis
               代表者（部分一致）
               <input type="text" name="rep" defaultValue={sp.rep} className={`w-40 ${inputCls}`} />
             </label>
-            <label className="flex flex-col gap-1 text-xs font-semibold text-slate-500">
-              担当者（部分一致）
-              <input type="text" name="credit_company" defaultValue={sp.credit_company} className={`w-40 ${inputCls}`} />
-            </label>
+            <div className="flex flex-col gap-1 text-xs font-semibold text-slate-500">
+              <label htmlFor="credit_company_input">担当者（部分一致）</label>
+              <div className="flex items-center gap-3">
+                <input
+                  id="credit_company_input"
+                  type="text"
+                  name="credit_company"
+                  defaultValue={sp.credit_company}
+                  className={`w-40 ${inputCls}`}
+                />
+                {/* チェックすると、担当者名（顧客側）が入力済みのリードだけを検索する */}
+                <label className="flex items-center gap-1.5 whitespace-nowrap text-sm font-semibold text-slate-600">
+                  <input
+                    type="checkbox"
+                    name="has_contact"
+                    value="1"
+                    defaultChecked={sp.has_contact === "1"}
+                    className="h-4 w-4 rounded border-slate-300 text-orange-600 focus:ring-orange-500"
+                  />
+                  担当者名あり
+                </label>
+              </div>
+            </div>
           </FilterGroup>
 
           <FilterGroup title="既存契約">
@@ -533,7 +553,8 @@ export default async function LeadsPage({ searchParams }: { searchParams: Promis
                 {sp.phone_prefix && <input type="hidden" name="phone_prefix" value={sp.phone_prefix} />}
                 {sp.rep && <input type="hidden" name="rep" value={sp.rep} />}
                 {sp.credit_company && <input type="hidden" name="credit_company" value={sp.credit_company} />}
-                {sp.status && <input type="hidden" name="status" value={sp.status} />}
+                {sp.has_contact === "1" && <input type="hidden" name="has_contact" value="1" />}
+                {sp.status &&<input type="hidden" name="status" value={sp.status} />}
                 {sp.assignee && <input type="hidden" name="assignee" value={sp.assignee} />}
                 {genreList.map((g) => (
                   <input key={`h-genre-${g}`} type="hidden" name="genre" value={g} />
