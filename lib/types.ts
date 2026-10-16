@@ -209,8 +209,8 @@ export const CALL_RESULT_GROUPS: Record<CallResultGroup, readonly string[]> = {
 // nextStatus が null の場合は「ステータスは変更しない」を意味する。
 //
 // ステータス自動連動（2026-10-02 見直し）：
-//   つながらなかった：留守→架電中／話中→架電中／廃業→対象外／再コール→架電中
-//   つながった：フロントNG・代表NG・追わない→コールアウト／再コール→見込み／見込み→見込み（2026-10-16 結果に追加）／
+//   つながらなかった：留守→架電中／話中→架電中／廃業→対象外／再コール→再コール（2026-10-16 変更）
+//   つながった：フロントNG・代表NG・追わない→コールアウト／再コール→再コール（2026-10-16 変更）／見込み→見込み（2026-10-16 結果に追加）／
 //              前確依頼→前確待ち／前確NG→前確NG／アポ確定→アポ確定／アポ禁→アポ禁
 //   （前確待ちのリードを、前確した人が「アポ確定」にしても、アポの成績は前確依頼をした人に付く）
 //   その他：結果待ち→変更なし／キャンセル→コールアウト
@@ -220,13 +220,13 @@ export const CALL_RESULT_OUTCOME: Record<CallResultGroup, Record<string, CallOut
     留守: { connected: false, appointment: false, nextStatus: "架電中" },
     話中: { connected: false, appointment: false, nextStatus: "架電中" },
     廃業: { connected: false, appointment: false, nextStatus: "対象外" },
-    再コール: { connected: false, appointment: false, nextStatus: "架電中" },
+    再コール: { connected: false, appointment: false, nextStatus: "再コール" },
   },
   つながった: {
     フロントNG: { connected: true, appointment: false, nextStatus: "コールアウト" },
     代表NG: { connected: true, appointment: false, nextStatus: "コールアウト" },
     追わない: { connected: true, appointment: false, nextStatus: "コールアウト" },
-    再コール: { connected: true, appointment: false, nextStatus: "見込み" },
+    再コール: { connected: true, appointment: false, nextStatus: "再コール" },
     見込み: { connected: true, appointment: false, nextStatus: "見込み" },
     前確依頼: { connected: true, appointment: false, nextStatus: "前確待ち" },
     前確NG: { connected: true, appointment: false, nextStatus: "前確NG" },
@@ -268,6 +268,7 @@ export const CALL_RESULT_FLAT_OPTIONS: string[] = Array.from(
 export const LEAD_STATUSES = [
   "未着手",
   "架電中",
+  "再コール",
   "見込み",
   "前確待ち",
   "前確NG",
@@ -289,10 +290,10 @@ export const APO_KIN_STATUS = "アポ禁";
 // 営業が進んだリードが、「留守」「話中」「再コール」を記録しただけで後戻りしないようにする。
 //
 //   ■ 進捗の段階（数字が大きいほど先に進んでいる）
-//       未着手(0) → 架電中(1) → 見込み(2) → 前確待ち(3) → アポ確定(4) → 成約(5)
+//       未着手(0) → 架電中(1) → 再コール(2) → 見込み(3) → 前確待ち(4) → アポ確定(5) → 成約(6)
 //
 //   ■ ルール
-//     ・自動連動の行き先が「架電中」「見込み」（＝継続中を表すステータス）のとき、
+//     ・自動連動の行き先が「架電中」「再コール」「見込み」（＝継続中を表すステータス）のとき、
 //       今のステータスの方が先に進んでいれば、今のステータスのまま変えない。
 //         例）見込み のリードに「留守」を記録 → 架電中には戻さず、見込み のまま
 //         例）アポ確定 のリードに「再コール(つながった)」を記録 → 見込み には戻さず、アポ確定 のまま
@@ -305,13 +306,14 @@ export const APO_KIN_STATUS = "アポ禁";
 const STATUS_PROGRESS: Record<string, number> = {
   未着手: 0,
   架電中: 1,
-  見込み: 2,
-  前確待ち: 3,
-  アポ確定: 4,
-  成約: 5,
+  再コール: 2,
+  見込み: 3,
+  前確待ち: 4,
+  アポ確定: 5,
+  成約: 6,
 };
 // 後戻りさせない（上書き禁止の）対象になる、自動連動の行き先
-const PROTECTED_TARGET_STATUSES = new Set(["未着手", "架電中", "見込み"]);
+const PROTECTED_TARGET_STATUSES = new Set(["未着手", "架電中", "再コール", "見込み"]);
 
 /**
  * 通話結果から決まった「次のステータス」を、上書きルールに通した結果を返す。
