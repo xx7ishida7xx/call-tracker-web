@@ -17,6 +17,7 @@ import {
   CALL_RESULT_GROUPS,
   CALL_RANKS,
   getCallOutcome,
+  resolveStatusAfterCall,
   APO_KIN_STATUS,
   ACQUISITION_DESIRE_OPTIONS,
   ACQUISITION_DESIRE_LABEL,
@@ -282,7 +283,10 @@ export default function LeadDetailClient({
       return;
     }
     const outcome = getCallOutcome(callForm.resultGroup, callForm.result);
-    const nextStatus = outcome.nextStatus ?? lead.status;
+    // 通話結果で決まる次のステータス。ただし「上書きルール」により、すでに先に進んでいる
+    // ステータス（見込み・前確待ち・アポ確定・成約）は、留守などで後戻りさせない。
+    // （サーバー側でも、最新のステータスで同じルールを適用して保存する）
+    const nextStatus = resolveStatusAfterCall(lead.status, outcome.nextStatus);
     // 「アポ禁」は、オーナー・管理者以外にはその後このリードが見えなくなる重い操作のため、
     // 押し間違いを防ぐ確認を挟む。
     if (outcome.nextStatus === APO_KIN_STATUS) {
@@ -309,7 +313,8 @@ export default function LeadDetailClient({
         // 開いている画面の担当者欄にも、再読み込みなしで反映する。
         setForm((f) => ({
           ...f,
-          status: nextStatus,
+          // サーバーが実際に保存したステータスを反映する（上書きルールで変わらなかった場合も正しく表示）
+          status: callResult?.status ?? nextStatus,
           ...(callResult?.assignedTo ? { assigned_to: callResult.assignedTo } : {}),
         }));
         setCallForm(EMPTY_CALL_FORM);
@@ -332,7 +337,14 @@ export default function LeadDetailClient({
   function outcomeSummary(outcome: CallOutcome): string {
     const parts = [outcome.connected ? "有効架電：ON" : "有効架電：OFF"];
     if (outcome.appointment) parts.push("アポ確定：ON");
-    parts.push(outcome.nextStatus ? `ステータス → ${outcome.nextStatus}` : "ステータス：変更なし");
+    if (!outcome.nextStatus) {
+      parts.push("ステータス：変更なし");
+    } else if (resolveStatusAfterCall(lead.status, outcome.nextStatus) !== outcome.nextStatus) {
+      // 上書きルールにより、先に進んでいるステータスは後戻りさせない
+      parts.push(`ステータス：${lead.status}のまま（${outcome.nextStatus}には戻しません）`);
+    } else {
+      parts.push(`ステータス → ${outcome.nextStatus}`);
+    }
     // 前確待ちからのアポ確定は、アポの成績・担当者が前確依頼をした人のままになることを知らせる
     if (outcome.appointment && form.status === "前確待ち") {
       const requester = calls.find((c) => c.result === "前確依頼");

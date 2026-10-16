@@ -7,7 +7,7 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getCurrentProfile } from "@/lib/auth";
 import { parseLeadsCsv } from "@/lib/csv";
-import { APO_KIN_STATUS, canManageMembers, canManageProfileGoals, ATTACHMENT_CATEGORIES, MAX_ATTACHMENT_SIZE, type AttachmentCategory, type Lead, type Profile, type Role } from "@/lib/types";
+import { APO_KIN_STATUS, resolveStatusAfterCall, canManageMembers, canManageProfileGoals, ATTACHMENT_CATEGORIES, MAX_ATTACHMENT_SIZE, type AttachmentCategory, type Lead, type Profile, type Role } from "@/lib/types";
 import { holidayMapForMonth, defaultIsWorking, datesInMonth } from "@/lib/workday";
 
 // ---------------------------------------------------------------------------
@@ -87,6 +87,12 @@ export async function addCall(
     .maybeSingle();
   const autoAssign = !!leadBefore && !leadBefore.assigned_to;
 
+  // 通話結果で決まった次のステータスを、「上書きルール」に通してから使う。
+  // 例）見込み のリードに「留守」を記録しても、架電中には戻さず 見込み のままにする
+  // （ルールの詳細は lib/types.ts の resolveStatusAfterCall）。
+  // 判断には、画面から渡された値ではなく、いま保存されている最新のステータスを使う。
+  const effectiveStatus = resolveStatusAfterCall(leadBefore?.status, payload.next_status);
+
   // アポの成績が付く人。通常は通話した本人。
   // 前確待ちのリードを、前確した人が「アポ確定」にした場合は、前確依頼をした人（アポを取った人）の成績にする。
   // 担当者（leads.assigned_to）は変えないので、担当者もそのまま。
@@ -108,7 +114,7 @@ export async function addCall(
     caller_id: me.id,
     assigned_by_call: autoAssign,
     status_before: leadBefore?.status ?? null,
-    status_after: payload.next_status,
+    status_after: effectiveStatus,
     result: payload.result,
     result_group: payload.result_group,
     notes: payload.notes,
@@ -125,7 +131,7 @@ export async function addCall(
   const { error: leadError } = await supabase
     .from("leads")
     .update({
-      status: payload.next_status,
+      status: effectiveStatus,
       last_call_at: new Date().toISOString(),
       last_call_staff: me.display_name || me.name || me.email,
       recall_at: payload.recall_at,
@@ -139,13 +145,13 @@ export async function addCall(
   // 開いている詳細ページを再取得すると「見つかりません」画面になってしまうため、
   // アポ禁にした場合は詳細ページの再取得は行わず（画面側で一覧／次のリードへ移動する）、
   // 一覧だけ更新する。
-  if (payload.next_status !== APO_KIN_STATUS) {
+  if (effectiveStatus !== APO_KIN_STATUS) {
     revalidatePath(`/leads/${leadId}`);
   }
   revalidatePath("/leads");
-  // 画面側（開いているリード詳細の担当者欄）を、再読み込みなしで更新できるよう、
-  // 自動で割り振った担当者を返す（割り振らなかった場合は null）。
-  return { assignedTo: autoAssign ? me.id : null };
+  // 画面側（開いているリード詳細の担当者欄・ステータス欄）を、再読み込みなしで更新できるよう、
+  // 自動で割り振った担当者（割り振らなかった場合は null）と、実際に保存したステータスを返す。
+  return { assignedTo: autoAssign ? me.id : null, status: effectiveStatus };
 }
 
 // 通話記録を編集・削除したあと、リード側のサマリー項目（最終架電日時・最終架電者・

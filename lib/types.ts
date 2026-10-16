@@ -282,6 +282,56 @@ export const LEAD_STATUSES = [
 // 一覧・詳細のどこにも表示しない特別なステータス（実際の閲覧制限はデータベース側のRLSで行う）。
 export const APO_KIN_STATUS = "アポ禁";
 
+// ==========================================================================
+// ステータス上書きのルール（通話結果を記録したときの自動連動に適用する）
+// --------------------------------------------------------------------------
+// 営業が進んだリードが、「留守」「話中」「再コール」を記録しただけで後戻りしないようにする。
+//
+//   ■ 進捗の段階（数字が大きいほど先に進んでいる）
+//       未着手(0) → 架電中(1) → 見込み(2) → 前確待ち(3) → アポ確定(4) → 成約(5)
+//
+//   ■ ルール
+//     ・自動連動の行き先が「架電中」「見込み」（＝継続中を表すステータス）のとき、
+//       今のステータスの方が先に進んでいれば、今のステータスのまま変えない。
+//         例）見込み のリードに「留守」を記録 → 架電中には戻さず、見込み のまま
+//         例）アポ確定 のリードに「再コール(つながった)」を記録 → 見込み には戻さず、アポ確定 のまま
+//     ・先に進む方向（架電中→見込み など）は、これまでどおり変更する。
+//     ・「前確待ち」「前確NG」「アポ確定」「成約」「コールアウト」「BK」「対象外」「アポ禁」は、
+//       担当者が結果を明確に選んだ結果なので、これまでどおり必ず反映する。
+//     ・このルールは通話結果による自動連動だけが対象。リード詳細でステータスを直接変更する
+//       操作には影響しない（手動での変更は自由）。
+// ==========================================================================
+const STATUS_PROGRESS: Record<string, number> = {
+  未着手: 0,
+  架電中: 1,
+  見込み: 2,
+  前確待ち: 3,
+  アポ確定: 4,
+  成約: 5,
+};
+// 後戻りさせない（上書き禁止の）対象になる、自動連動の行き先
+const PROTECTED_TARGET_STATUSES = new Set(["未着手", "架電中", "見込み"]);
+
+/**
+ * 通話結果から決まった「次のステータス」を、上書きルールに通した結果を返す。
+ * @param current  今のリードのステータス（不明なら null/undefined）
+ * @param proposed 通話結果から決まった次のステータス（変更なしなら null）
+ */
+export function resolveStatusAfterCall(
+  current: string | null | undefined,
+  proposed: string | null | undefined
+): string {
+  if (!proposed) return current ?? "";
+  if (!current) return proposed;
+  if (!PROTECTED_TARGET_STATUSES.has(proposed)) return proposed;
+  const currentRank = STATUS_PROGRESS[current];
+  const proposedRank = STATUS_PROGRESS[proposed];
+  if (currentRank !== undefined && proposedRank !== undefined && currentRank > proposedRank) {
+    return current; // 後戻りさせない
+  }
+  return proposed;
+}
+
 // 参照元（旧:元CMS）。取り込んだリストの元CMSベンダーで分類する。
 // 「その他」を選んだ場合は、さらに下の階層で具体的なサービス名を選べるようにする。
 export const CMS_MAIN_OPTIONS = ["A社製CMS", "G社製CMS", "WIX", "WordPress", "その他"] as const;
