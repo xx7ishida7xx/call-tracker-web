@@ -221,14 +221,24 @@ export default function ImportClient({ me, roster }: { me: Profile; roster: Prof
             {fileName ? (
               <>
                 <span className="font-semibold text-slate-800">{fileName}</span>
-                <span className="text-xs text-slate-500">別のファイルに変える場合は、ここにドロップするか、クリックして選び直してください</span>
+                <span className="text-xs text-slate-500">別のファイルに変える場合は、ここにドロップするか、下のボタンで選び直してください</span>
               </>
             ) : (
               <>
                 <span className="font-semibold text-slate-700">ここにCSVファイルをドラッグ＆ドロップ</span>
-                <span className="text-xs text-slate-500">またはクリックしてファイルを選択</span>
+                <span className="text-xs text-slate-500">または下のボタンでファイルを選択</span>
               </>
             )}
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation(); // 枠全体のクリックと二重に開かないようにする
+                fileRef.current?.click();
+              }}
+              className="mt-2 rounded-lg border border-orange-300 bg-orange-50 px-4 py-1.5 text-sm font-semibold text-orange-700 hover:bg-orange-100"
+            >
+              ファイルを選択
+            </button>
           </div>
           <input
             ref={fileRef}
