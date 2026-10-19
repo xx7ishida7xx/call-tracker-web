@@ -25,6 +25,8 @@ export type LeadSearchParams = {
   call_result?: string;
   call_rank?: string | string[];
   call_hot?: string;
+  // 「直近の通話のみ」チェック（"1" のとき、リードごとの一番新しい通話だけを、コール履歴の条件の対象にする）
+  call_latest?: string;
   recall_from?: string;
   recall_to?: string;
   has_url?: string;
@@ -60,13 +62,44 @@ export async function getCallFilteredLeadIds(
   callRankList: string[]
 ): Promise<string[] | null> {
   if (!sp.caller && !sp.call_result && callRankList.length === 0 && sp.call_hot !== "1") return null;
-  let callsQuery = supabase.from("calls").select("lead_id");
-  if (sp.caller) callsQuery = callsQuery.eq("caller_id", sp.caller);
-  if (sp.call_result) callsQuery = callsQuery.eq("result", sp.call_result);
-  if (callRankList.length > 0) callsQuery = callsQuery.in("rank", callRankList);
-  if (sp.call_hot === "1") callsQuery = callsQuery.eq("hot", true);
-  const { data: callRows } = await callsQuery;
-  return Array.from(new Set(((callRows ?? []) as { lead_id: string }[]).map((r) => r.lead_id)));
+  const baseQuery = () => {
+    let q = supabase.from("calls").select("id,lead_id");
+    if (sp.caller) q = q.eq("caller_id", sp.caller);
+    if (sp.call_result) q = q.eq("result", sp.call_result);
+    if (callRankList.length > 0) q = q.in("rank", callRankList);
+    if (sp.call_hot === "1") q = q.eq("hot", true);
+    return q;
+  };
+  const { data: callRows } = await baseQuery();
+  const rows = (callRows ?? []) as { id: string; lead_id: string }[];
+  const leadIds = Array.from(new Set(rows.map((r) => r.lead_id)));
+
+  // 「直近の通話のみ」：リードごとに一番新しい通話を求め、その通話が条件に合うリードだけを残す。
+  // 例）結果＝再コール＋直近のみ → 「最後に記録した通話が再コール」のリードだけ。
+  //     あとでコールアウトなどの結果が記録されたリードは外れる。
+  if (sp.call_latest === "1" && leadIds.length > 0) {
+    const matchedCallIds = new Set(rows.map((r) => r.id));
+    const keep = new Set<string>();
+    const CHUNK = 100;
+    for (let i = 0; i < leadIds.length; i += CHUNK) {
+      const chunk = leadIds.slice(i, i + CHUNK);
+      const { data: allCalls } = await supabase
+        .from("calls")
+        .select("id,lead_id")
+        .in("lead_id", chunk)
+        .order("called_at", { ascending: false })
+        .order("created_at", { ascending: false })
+        .limit(5000);
+      const seen = new Set<string>();
+      for (const c of (allCalls ?? []) as { id: string; lead_id: string }[]) {
+        if (seen.has(c.lead_id)) continue; // 新しい順なので、最初に出てきたものがそのリードの直近の通話
+        seen.add(c.lead_id);
+        if (matchedCallIds.has(c.id)) keep.add(c.lead_id);
+      }
+    }
+    return Array.from(keep);
+  }
+  return leadIds;
 }
 
 // leads テーブルへのクエリに、検索条件をすべて適用する（.select()済みのクエリに対して使う）。

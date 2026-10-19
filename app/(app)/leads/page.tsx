@@ -165,6 +165,7 @@ export default async function LeadsPage({ searchParams }: { searchParams: Promis
     if (sp.call_result) params.set("call_result", sp.call_result);
     callRankList.forEach((r) => params.append("call_rank", r));
     if (sp.call_hot === "1") params.set("call_hot", "1");
+    if (sp.call_latest === "1") params.set("call_latest", "1");
     if (sp.recall_from) params.set("recall_from", sp.recall_from);
     if (sp.recall_to) params.set("recall_to", sp.recall_to);
     if (sp.has_url) params.set("has_url", sp.has_url);
@@ -309,6 +310,19 @@ export default async function LeadsPage({ searchParams }: { searchParams: Promis
                 className="h-4 w-4 rounded border-slate-300 text-rose-600 focus:ring-rose-500"
               />
               激アツ!!
+            </label>
+            <label
+              className="flex items-center gap-2 pb-2 text-sm font-semibold text-slate-700"
+              title="リードごとの一番新しい通話だけを、上のコール履歴の条件の対象にします（例：結果＝再コール → 最後の通話が再コールのリードだけ）"
+            >
+              <input
+                type="checkbox"
+                name="call_latest"
+                value="1"
+                defaultChecked={sp.call_latest === "1"}
+                className="h-4 w-4 rounded border-slate-300 text-sky-600 focus:ring-sky-500"
+              />
+              直近の通話のみ
             </label>
           </FilterGroup>
 
@@ -574,6 +588,7 @@ export default async function LeadsPage({ searchParams }: { searchParams: Promis
                   <input key={`h-call_rank-${r}`} type="hidden" name="call_rank" value={r} />
                 ))}
                 {sp.call_hot === "1" && <input type="hidden" name="call_hot" value="1" />}
+                {sp.call_latest === "1" && <input type="hidden" name="call_latest" value="1" />}
                 {sp.recall_from && <input type="hidden" name="recall_from" value={sp.recall_from} />}
                 {sp.recall_to && <input type="hidden" name="recall_to" value={sp.recall_to} />}
                 {sp.has_url && <input type="hidden" name="has_url" value={sp.has_url} />}
