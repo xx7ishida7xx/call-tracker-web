@@ -38,6 +38,8 @@ export default function ImportClient({ me, roster }: { me: Profile; roster: Prof
   const [mode, setMode] = useState<Mode>("new");
   const fileRef = useRef<HTMLInputElement>(null);
   const [fileName, setFileName] = useState("");
+  // ドラッグ中（ファイルを枠の上に持ってきている間）の見た目切り替え用
+  const [dragging, setDragging] = useState(false);
   const [assignTo, setAssignTo] = useState("");
   // 更新インポートで、リード側がすでに埋まっている項目もCSVの値で上書きするか（既定：しない＝空欄だけ埋める）
   const [overwrite, setOverwrite] = useState(false);
@@ -51,6 +53,25 @@ export default function ImportClient({ me, roster }: { me: Profile; roster: Prof
     setImportResult(null);
     setUpdateResult(null);
     setError(null);
+  }
+
+  // ドラッグ＆ドロップで渡されたファイルを、ファイル選択欄にセットする（クリックで選ぶ場合と同じ扱いにする）
+  function handleDrop(e: React.DragEvent<HTMLDivElement>) {
+    e.preventDefault();
+    setDragging(false);
+    const dropped = Array.from(e.dataTransfer.files ?? []);
+    const csv = dropped.find((f) => /\.csv$/i.test(f.name) || f.type === "text/csv");
+    if (!csv) {
+      setError("CSVファイル（.csv）をドロップしてください。");
+      return;
+    }
+    if (fileRef.current) {
+      const dt = new DataTransfer();
+      dt.items.add(csv);
+      fileRef.current.files = dt.files;
+    }
+    setError(null);
+    setFileName(csv.name);
   }
 
   function handleRun() {
@@ -175,16 +196,48 @@ export default function ImportClient({ me, roster }: { me: Profile; roster: Prof
       </div>
 
       <div className={`flex flex-col gap-4 ${cardCls} p-5`}>
-        <label className="flex flex-col gap-1 text-sm">
+        <div className="flex flex-col gap-1 text-sm">
           <span className="font-medium text-slate-700">CSVファイル</span>
+          <div
+            onDragOver={(e) => {
+              e.preventDefault();
+              setDragging(true);
+            }}
+            onDragLeave={() => setDragging(false)}
+            onDrop={handleDrop}
+            onClick={() => fileRef.current?.click()}
+            role="button"
+            tabIndex={0}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                fileRef.current?.click();
+              }
+            }}
+            className={`flex cursor-pointer flex-col items-center justify-center gap-1 rounded-xl border-2 border-dashed px-4 py-8 text-center transition ${
+              dragging ? "border-orange-400 bg-orange-50" : "border-slate-300 bg-white hover:border-orange-300 hover:bg-orange-50/50"
+            }`}
+          >
+            {fileName ? (
+              <>
+                <span className="font-semibold text-slate-800">{fileName}</span>
+                <span className="text-xs text-slate-500">別のファイルに変える場合は、ここにドロップするか、クリックして選び直してください</span>
+              </>
+            ) : (
+              <>
+                <span className="font-semibold text-slate-700">ここにCSVファイルをドラッグ＆ドロップ</span>
+                <span className="text-xs text-slate-500">またはクリックしてファイルを選択</span>
+              </>
+            )}
+          </div>
           <input
             ref={fileRef}
             type="file"
             accept=".csv,text/csv"
             onChange={(e) => setFileName(e.target.files?.[0]?.name ?? "")}
-            className="text-sm text-slate-700 file:mr-3 file:rounded-lg file:border-0 file:bg-orange-50 file:px-3 file:py-1.5 file:text-sm file:font-semibold file:text-orange-700 hover:file:bg-orange-100"
+            className="hidden"
           />
-        </label>
+        </div>
 
         {mode === "new" && roster.length > 0 && (
           <label className="flex flex-col gap-1 text-sm">
