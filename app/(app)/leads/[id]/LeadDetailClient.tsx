@@ -862,7 +862,12 @@ export default function LeadDetailClient({
 
       {/* 添付ファイル（診断レポート／アポ表） */}
       <section className={`${cardCls} p-5`}>
-        <h2 className={`mb-1 ${sectionTitleCls}`}>添付ファイル</h2>
+        <div className="mb-1 flex flex-wrap items-center justify-between gap-2">
+          <h2 className={sectionTitleCls}>添付ファイル</h2>
+          <Link href={`/apo/new?lead=${lead.id}`} className={btnSecondarySmCls}>
+            このリードのアポ表を作る
+          </Link>
+        </div>
         <p className="mb-4 text-xs text-slate-400">
           診断レポートやアポ表のファイルを、点線の枠にドラッグ＆ドロップするか、「ファイルを選んで…アップロード」ボタンで取り込めます（スマホはボタンをお使いください）。過去分もここであわせて確認できます。
         </p>

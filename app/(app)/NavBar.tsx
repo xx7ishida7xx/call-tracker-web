@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
-export type IconName = "list" | "chart" | "users" | "upload" | "target" | "mail";
+export type IconName = "list" | "chart" | "users" | "upload" | "target" | "mail" | "doc";
 
 // badge：項目の右に赤い数字で出す件数（未読のメッセージなど。0や未指定なら出さない）
 export type NavItem = { href: string; label: string; icon: IconName; group?: string; badge?: number };
@@ -57,6 +57,12 @@ function Icon({ name, className }: { name: IconName; className?: string }) {
         <svg {...common}>
           <rect x="3" y="5" width="18" height="14" rx="2" />
           <path d="m3 7 9 6 9-6" />
+        </svg>
+      );
+    case "doc":
+      return (
+        <svg {...common}>
+          <path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8l-5-5ZM14 3v5h5M9 13h6M9 17h6" />
         </svg>
       );
     case "target":

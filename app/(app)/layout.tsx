@@ -30,6 +30,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   const navItems: NavItem[] = [
     { href: "/leads", label: "リード一覧", icon: "list" },
     { href: "/goals", label: "目標・稼働日", icon: "target" },
+    { href: "/apo", label: "アポ表", icon: "doc" },
     ...(showMessages
       ? [{ href: "/messages", label: "自分宛のメッセージ", icon: "mail" as const, badge: unreadMessages }]
       : []),
