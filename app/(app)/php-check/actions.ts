@@ -63,14 +63,18 @@ async function checkAndSave(rows: Row[], summary: Record<string, number>) {
 // まとめて判定する（管理者のみ）。
 //   mode "unchecked" … まだ判定していない（URLがある）リードを順に
 //   mode "all"       … 全件をやり直す（cursor より後のIDから順に）
-export async function runPhpCheckBatch(mode: "unchecked" | "all", cursor: string | null): Promise<PhpBatchResult> {
+//   mode "private"   … 「非公開」と判定済みのものだけを、WordPressの手がかりつきでやり直す
+export async function runPhpCheckBatch(mode: "unchecked" | "all" | "private", cursor: string | null): Promise<PhpBatchResult> {
   const me = await getCurrentProfile();
   if (!me || !canManageMembers(me)) throw new Error("この操作は管理者のみ可能です。");
   const supabase = await createClient();
 
   let q = supabase.from("leads").select("id,url").neq("url", "").order("id").limit(BATCH_SIZE);
   if (mode === "unchecked") q = q.is("php_checked_at", null);
-  else if (cursor) q = q.gt("id", cursor);
+  else {
+    if (mode === "private") q = q.eq("php_status", "非公開");
+    if (cursor) q = q.gt("id", cursor);
+  }
   const { data, error } = await q;
   if (error) throw new Error(error.message);
   const rows = (data ?? []) as Row[];
@@ -80,7 +84,10 @@ export async function runPhpCheckBatch(mode: "unchecked" | "all", cursor: string
 
   let remQ = supabase.from("leads").select("id", { count: "exact", head: true }).neq("url", "");
   if (mode === "unchecked") remQ = remQ.is("php_checked_at", null);
-  else if (rows.length > 0) remQ = remQ.gt("id", rows[rows.length - 1].id);
+  else {
+    if (mode === "private") remQ = remQ.eq("php_status", "非公開");
+    if (rows.length > 0) remQ = remQ.gt("id", rows[rows.length - 1].id);
+  }
   const { count } = await remQ;
   // 判定済みのものだけが残る場合に無限ループしないよう、取得が0件なら残りも0とみなす
   const remaining = rows.length === 0 ? 0 : (count ?? 0);

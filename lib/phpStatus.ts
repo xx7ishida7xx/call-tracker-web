@@ -8,7 +8,7 @@
 // 2026-10-21 公開の重大な脆弱性 CVE-2026-109618 / CVE-2026-109619 の修正版にもとづく）は、
 // 下の PHP_BRANCHES に集約している。サポート期限が来たら、ここを見直すこと。
 
-export const PHP_STATUSES = ["サポート終了", "要更新", "最新", "非公開", "PHP以外", "取得失敗"] as const;
+export const PHP_STATUSES = ["サポート終了", "要更新", "最新", "推定古い", "非公開", "PHP以外", "取得失敗"] as const;
 export type PhpStatus = (typeof PHP_STATUSES)[number];
 
 // 一覧の絞り込みで選べる項目（「未判定」は、まだ判定していないリード）
@@ -20,6 +20,7 @@ export const PHP_STATUS_BADGE_CLS: Record<string, string> = {
   サポート終了: "bg-rose-100 text-rose-700",
   要更新: "bg-orange-100 text-orange-700",
   最新: "bg-emerald-100 text-emerald-700",
+  推定古い: "bg-amber-100 text-amber-700",
   非公開: "bg-slate-100 text-slate-500",
   PHP以外: "bg-slate-100 text-slate-500",
   取得失敗: "bg-slate-100 text-slate-400",
@@ -87,4 +88,38 @@ export function extractPhpFromHeaders(poweredBy: string | null, server: string |
   if (withVersion) return { found: true, version: withVersion[1], otherTech: "" };
   if (/\bPHP\b/i.test(joined)) return { found: true, version: "", otherTech: "" };
   return { found: false, version: "", otherTech: poweredBy ?? "" };
+}
+
+// ---------------------------------------------------------------------------
+// WordPress の手がかりによる「推定」（ヘッダーにPHPの情報がないサイト用）
+//   ページのHTMLから WordPress 本体のバージョンを読み取る。WordPress 6.0（2022年5月）より前は、
+//   更新が止まっている可能性が高く、PHPも古い可能性があるため「推定古い」にする。
+//   これは確定ではない（推定）。最終確認はサーバー管理画面で行う。
+// ---------------------------------------------------------------------------
+export function detectWordPress(html: string): { isWp: boolean; version: string } {
+  const gen =
+    /<meta[^>]+name=["']generator["'][^>]*content=["']WordPress\s+(\d+\.\d+(?:\.\d+)?)/i.exec(html) ??
+    /<meta[^>]+content=["']WordPress\s+(\d+\.\d+(?:\.\d+)?)["'][^>]*name=["']generator["']/i.exec(html);
+  if (gen) return { isWp: true, version: gen[1] };
+  // 本体と同じバージョン番号が付く読み込みURLだけを使う（jquery など、部品ごとに番号が違うものは使わない）
+  const core = /(?:block-library\/[^"'\s>]*|wp-emoji-release\.min\.js|wp-embed\.min\.js)\?ver=(\d+\.\d+(?:\.\d+)?)/i.exec(html);
+  if (core) return { isWp: true, version: core[1] };
+  return { isWp: /wp-content\/|wp-includes\//i.test(html), version: "" };
+}
+
+export function classifyWordPress(wp: { isWp: boolean; version: string }): PhpResult | null {
+  if (!wp.isWp) return null;
+  const p = parseVersion(wp.version);
+  if (p && (p[0] < 6)) {
+    return {
+      version: "",
+      status: "推定古い",
+      note: `WordPress ${wp.version} を検出しました。WordPress 6.0（2022年5月）より前は更新が止まっている可能性が高く、PHPも古い可能性があります（推定。PHPのバージョンそのものは不明です）。`,
+    };
+  }
+  return {
+    version: "",
+    status: "非公開",
+    note: wp.version ? `WordPress ${wp.version} を検出しました（PHPのバージョンは不明です）。` : "WordPress を検出しました（PHPのバージョンは不明です）。",
+  };
 }

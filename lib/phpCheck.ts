@@ -1,6 +1,6 @@
 import { lookup } from "node:dns/promises";
 import { isIP } from "node:net";
-import { classifyPhpVersion, extractPhpFromHeaders, type PhpResult } from "@/lib/phpStatus";
+import { classifyPhpVersion, classifyWordPress, detectWordPress, extractPhpFromHeaders, type PhpResult } from "@/lib/phpStatus";
 
 // サイトにアクセスしてPHPバージョンを判定する部分（サーバー側専用。判定の基準は lib/phpStatus.ts）
 
@@ -45,7 +45,43 @@ async function assertPublicUrl(u: URL): Promise<void> {
 }
 
 // 転送（リダイレクト）を自分でたどりながら、最後に出てきた PHP の情報を返す
-async function fetchHeaders(startUrl: string): Promise<{ poweredBy: string | null; server: string | null }> {
+const MAX_BODY_BYTES = 200_000;
+
+// 最終ページの本文を、先頭 MAX_BODY_BYTES だけ読む（PHPの情報がなかったときの手がかり探し用）
+async function readBodyHead(res: Response): Promise<string> {
+  const reader = res.body?.getReader();
+  if (!reader) return "";
+  const chunks: Uint8Array[] = [];
+  let total = 0;
+  try {
+    while (total < MAX_BODY_BYTES) {
+      const { done, value } = await reader.read();
+      if (done || !value) break;
+      chunks.push(value);
+      total += value.length;
+    }
+  } catch {
+    /* 途中までで十分 */
+  } finally {
+    try {
+      await reader.cancel();
+    } catch {
+      /* 無視 */
+    }
+  }
+  const merged = new Uint8Array(total);
+  let o = 0;
+  for (const c of chunks) {
+    merged.set(c, o);
+    o += c.length;
+  }
+  return new TextDecoder("utf-8", { fatal: false }).decode(merged);
+}
+
+async function fetchHeaders(
+  startUrl: string,
+  wantBody: (poweredBy: string | null, server: string | null) => boolean
+): Promise<{ poweredBy: string | null; server: string | null; body: string }> {
   let current = new URL(startUrl);
   let poweredBy: string | null = null;
   let server: string | null = null;
@@ -57,22 +93,28 @@ async function fetchHeaders(startUrl: string): Promise<{ poweredBy: string | nul
       signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
       headers: { "User-Agent": USER_AGENT, Accept: "text/html,*/*;q=0.5" },
     });
-    // 中身（ページ本体）は読まない。ヘッダーだけ見て接続を閉じる。
+    poweredBy = res.headers.get("x-powered-by") ?? poweredBy;
+    server = res.headers.get("server") ?? server;
+    const loc = res.headers.get("location");
+    if (res.status >= 300 && res.status < 400 && loc) {
+      try {
+        await res.body?.cancel();
+      } catch {
+        /* 無視 */
+      }
+      current = new URL(loc, current);
+      continue;
+    }
+    // PHPの情報がヘッダーになければ、ページの先頭だけ読んで手がかりを探す。あれば本文は読まない。
+    if (wantBody(poweredBy, server)) return { poweredBy, server, body: await readBodyHead(res) };
     try {
       await res.body?.cancel();
     } catch {
       /* 無視 */
     }
-    poweredBy = res.headers.get("x-powered-by") ?? poweredBy;
-    server = res.headers.get("server") ?? server;
-    const loc = res.headers.get("location");
-    if (res.status >= 300 && res.status < 400 && loc) {
-      current = new URL(loc, current);
-      continue;
-    }
-    return { poweredBy, server };
+    return { poweredBy, server, body: "" };
   }
-  return { poweredBy, server };
+  return { poweredBy, server, body: "" };
 }
 
 // "example.com" のようにスキームがないURLにも対応する
@@ -99,10 +141,13 @@ export async function checkSitePhp(rawUrl: string): Promise<PhpResult> {
   let lastError = "";
   for (const target of [first, alt]) {
     try {
-      const { poweredBy, server } = await fetchHeaders(target.toString());
+      const { poweredBy, server, body } = await fetchHeaders(target.toString(), (pb, sv) => !extractPhpFromHeaders(pb, sv).found);
       const found = extractPhpFromHeaders(poweredBy, server);
       if (found.found && found.version) return classifyPhpVersion(found.version);
       if (found.found) return { version: "", status: "非公開", note: "PHPで動いていますが、バージョンは公開されていません" };
+      // WordPress は PHP で動くので、PHP以外と判断する前に先に確認する
+      const wp = classifyWordPress(detectWordPress(body));
+      if (wp) return wp;
       if (found.otherTech) return { version: "", status: "PHP以外", note: `X-Powered-By: ${found.otherTech.slice(0, 80)}` };
       return { version: "", status: "非公開", note: "ヘッダーにPHPの情報がありません（PHPでないという意味ではありません）" };
     } catch (e) {

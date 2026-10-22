@@ -15,14 +15,14 @@ export default function PhpCheckClient({ overview: initial }: { overview: PhpOve
   const [message, setMessage] = useState("");
   const stopRef = useRef(false);
 
-  async function run(mode: "unchecked" | "all") {
+  async function run(mode: "unchecked" | "all" | "private") {
     if (mode === "all" && !window.confirm("判定済みも含めて、全件をやり直します。よろしいですか？")) return;
     stopRef.current = false;
     setRunning(true);
     setError("");
     setMessage("");
     setDone(0);
-    setTarget(mode === "unchecked" ? overview.unchecked : overview.withUrl);
+    setTarget(mode === "unchecked" ? overview.unchecked : mode === "private" ? (overview.byStatus["非公開"] ?? 0) : overview.withUrl);
     let cursor: string | null = null;
     let total = 0;
     let fails = 0;
@@ -69,7 +69,7 @@ export default function PhpCheckClient({ overview: initial }: { overview: PhpOve
         <ul className="list-disc space-y-1 pl-5 text-slate-600">
           <li>実行中は、このページを開いたままにしてください（閉じると止まります。続きからやり直せます）。</li>
           <li>20件ずつ、同時に10件まで調べます。1万件で、目安は2〜3時間です。</li>
-          <li>ヘッダーを隠しているサイトは「非公開」になります（PHPでないという意味ではありません）。</li>
+          <li>ヘッダーを隠しているサイトは「非公開」になります（PHPでないという意味ではありません）。WordPressと分かり、本体が古い（6.0より前）場合は「推定古い」と表示します（推定。確定ではありません）。</li>
         </ul>
       </div>
 
@@ -95,6 +95,9 @@ export default function PhpCheckClient({ overview: initial }: { overview: PhpOve
         <div className="flex flex-wrap gap-2">
           <button type="button" className={btnPrimaryCls} disabled={running || overview.unchecked === 0} onClick={() => run("unchecked")}>
             未判定を判定する
+          </button>
+          <button type="button" className={btnSecondaryCls} disabled={running || (overview.byStatus["非公開"] ?? 0) === 0} onClick={() => run("private")}>
+            非公開をWordPressの手がかりで再判定
           </button>
           <button type="button" className={btnSecondaryCls} disabled={running} onClick={() => run("all")}>
             全件をやり直す
