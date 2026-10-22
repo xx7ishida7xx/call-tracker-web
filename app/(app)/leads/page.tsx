@@ -22,6 +22,7 @@ import { applyLeadFilters, getCallFilteredLeadIds, type LeadSearchParams } from 
 import { checkGuestRateLimit } from "@/lib/rateLimit";
 import AssigneeCell from "./AssigneeCell";
 import MultiSelectFilter from "./MultiSelectFilter";
+import { PHP_FILTER_OPTIONS, PHP_STATUS_BADGE_CLS } from "@/lib/phpStatus";
 import {
   btnAccentCls,
   btnPrimaryCls,
@@ -50,6 +51,8 @@ type LeadRow = {
   last_call_at: string | null;
   recall_at: string | null;
   created_at: string;
+  php_version: string;
+  php_status: string;
   assigned: { id: string; name: string; display_name: string | null; email: string } | null;
 };
 
@@ -86,6 +89,7 @@ export default async function LeadsPage({ searchParams }: { searchParams: Promis
   const genreList = Array.isArray(sp.genre) ? sp.genre : sp.genre ? [sp.genre] : [];
   const prefList = Array.isArray(sp.pref) ? sp.pref : sp.pref ? [sp.pref] : [];
   const cmsList = Array.isArray(sp.cms) ? sp.cms : sp.cms ? [sp.cms] : [];
+  const phpStatusList = Array.isArray(sp.php_status) ? sp.php_status : sp.php_status ? [sp.php_status] : [];
   const hpStatusList = Array.isArray(sp.hp_status) ? sp.hp_status : sp.hp_status ? [sp.hp_status] : [];
   const callRankList = Array.isArray(sp.call_rank) ? sp.call_rank : sp.call_rank ? [sp.call_rank] : [];
 
@@ -118,7 +122,7 @@ export default async function LeadsPage({ searchParams }: { searchParams: Promis
     let query = supabase
       .from("leads")
       .select(
-        "id,company,pref,phone,status,assigned_to,last_call_at,recall_at,created_at,assigned:profiles!leads_assigned_to_fkey(id,name,display_name,email)",
+        "id,company,pref,phone,status,assigned_to,last_call_at,recall_at,created_at,php_version,php_status,assigned:profiles!leads_assigned_to_fkey(id,name,display_name,email)",
         { count: "exact" }
       )
       .order("created_at", { ascending: false })
@@ -161,6 +165,7 @@ export default async function LeadsPage({ searchParams }: { searchParams: Promis
     prefList.forEach((pr) => params.append("pref", pr));
     cmsList.forEach((c) => params.append("cms", c));
     hpStatusList.forEach((h) => params.append("hp_status", h));
+    phpStatusList.forEach((h) => params.append("php_status", h));
     if (sp.caller) params.set("caller", sp.caller);
     if (sp.call_result) params.set("call_result", sp.call_result);
     callRankList.forEach((r) => params.append("call_rank", r));
@@ -273,6 +278,7 @@ export default async function LeadsPage({ searchParams }: { searchParams: Promis
           <FilterGroup title="参照元リスト">
             <MultiSelectFilter label="参照元" name="cms" options={CMS_FILTER_OPTIONS} selected={cmsList} />
             <MultiSelectFilter label="HPの状態" name="hp_status" options={HP_STATUS_OPTIONS} selected={hpStatusList} />
+            <MultiSelectFilter label="PHP判定" name="php_status" options={PHP_FILTER_OPTIONS} selected={phpStatusList} />
           </FilterGroup>
 
           <FilterGroup title="コール履歴">
@@ -480,6 +486,7 @@ export default async function LeadsPage({ searchParams }: { searchParams: Promis
                   <th className="whitespace-nowrap px-4 py-2.5">担当者</th>
                   <th className="whitespace-nowrap px-4 py-2.5">最終架電</th>
                   <th className="whitespace-nowrap px-4 py-2.5">次回架電予定</th>
+                  <th className="whitespace-nowrap px-4 py-2.5">PHP</th>
                 </tr>
               </thead>
               <tbody>
@@ -517,11 +524,21 @@ export default async function LeadsPage({ searchParams }: { searchParams: Promis
                     </td>
                     <td className="whitespace-nowrap px-4 py-2.5 align-top text-slate-500">{formatDate(lead.last_call_at)}</td>
                     <td className="whitespace-nowrap px-4 py-2.5 align-top text-slate-500">{formatDateTime(lead.recall_at)}</td>
+                    <td className="whitespace-nowrap px-4 py-2.5 align-top">
+                      {lead.php_status ? (
+                        <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${PHP_STATUS_BADGE_CLS[lead.php_status] ?? "bg-slate-100 text-slate-500"}`}>
+                          {lead.php_version ? `${lead.php_version} ` : ""}
+                          {lead.php_status}
+                        </span>
+                      ) : (
+                        <span className="text-slate-300">-</span>
+                      )}
+                    </td>
                   </tr>
                 ))}
                 {leads.length === 0 && !queryError && (
                   <tr>
-                    <td colSpan={7} className="px-4 py-8 text-center text-slate-400">
+                    <td colSpan={8} className="px-4 py-8 text-center text-slate-400">
                       条件に一致するリードがありません
                     </td>
                   </tr>
@@ -578,6 +595,9 @@ export default async function LeadsPage({ searchParams }: { searchParams: Promis
                 ))}
                 {cmsList.map((c) => (
                   <input key={`h-cms-${c}`} type="hidden" name="cms" value={c} />
+                ))}
+                {phpStatusList.map((h) => (
+                  <input key={`h-php_status-${h}`} type="hidden" name="php_status" value={h} />
                 ))}
                 {hpStatusList.map((h) => (
                   <input key={`h-hp_status-${h}`} type="hidden" name="hp_status" value={h} />

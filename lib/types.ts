@@ -48,6 +48,10 @@ export interface Lead {
   cms: string;
   genre: string;
   subgenre: string;
+  php_version: string; // サイトのヘッダーから読み取ったPHPバージョン（未判定・不明は空文字）
+  php_status: string; // PHP判定（未判定は空文字）
+  php_note: string;
+  php_checked_at: string | null;
   hp_status: string; // HPの状態（HP_STATUS_OPTIONS のどれか。未設定は空文字）
   status: string;
   assigned_to: string | null;

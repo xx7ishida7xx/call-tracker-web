@@ -21,6 +21,7 @@ export type LeadSearchParams = {
   pref?: string | string[];
   cms?: string | string[];
   hp_status?: string | string[];
+  php_status?: string | string[];
   caller?: string;
   call_result?: string;
   call_rank?: string | string[];
@@ -104,7 +105,7 @@ export async function getCallFilteredLeadIds(
 
 // leads テーブルへのクエリに、検索条件をすべて適用する（.select()済みのクエリに対して使う）。
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-export function applyLeadFilters<Q extends { eq: any; ilike: any; in: any; gte: any; lte: any; contains: any; not: any }>(
+export function applyLeadFilters<Q extends { eq: any; ilike: any; in: any; gte: any; lte: any; contains: any; not: any; or: any }>(
   query: Q,
   sp: LeadSearchParams,
   genreList: string[],
@@ -144,6 +145,19 @@ export function applyLeadFilters<Q extends { eq: any; ilike: any; in: any; gte: 
   // HPの状態（選択式・複数選択）。選んだもののどれかに当てはまるリードを出す。
   const hpStatusList = toList(sp.hp_status);
   if (hpStatusList.length > 0) q = q.in("hp_status", hpStatusList);
+  // PHP判定（複数選択）。「未判定」は php_status が空のリード。
+  const phpList = toList(sp.php_status);
+  if (phpList.length > 0) {
+    const real = phpList.filter((s) => s !== "未判定");
+    const unchecked = phpList.includes("未判定");
+    if (real.length > 0 && unchecked) {
+      q = q.or(`php_status.in.(${real.map((s) => `"${s}"`).join(",")}),php_status.eq.`);
+    } else if (real.length > 0) {
+      q = q.in("php_status", real);
+    } else {
+      q = q.eq("php_status", "");
+    }
+  }
   if (sp.recall_from) q = q.gte("recall_at", new Date(`${sp.recall_from}T00:00:00+09:00`).toISOString());
   if (sp.recall_to) q = q.lte("recall_at", new Date(`${sp.recall_to}T23:59:59+09:00`).toISOString());
   // 注意：.contains() は第2引数がJSの配列だと「Postgresのネイティブ配列カラム」

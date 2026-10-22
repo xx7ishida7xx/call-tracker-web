@@ -39,6 +39,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       ? [
           { href: "/dashboard", label: "ダッシュボード", icon: "chart" as const, group: "管理者メニュー" },
           { href: "/members", label: "メンバー管理", icon: "users" as const, group: "管理者メニュー" },
+          { href: "/php-check", label: "PHP判定", icon: "list" as const, group: "管理者メニュー" },
         ]
       : []),
   ];

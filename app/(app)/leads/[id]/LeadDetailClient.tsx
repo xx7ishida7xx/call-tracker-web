@@ -2,6 +2,7 @@
 
 import { useRef, useState, useTransition } from "react";
 import Link from "next/link";
+import PhpInfo from "./PhpInfo";
 import { useRouter } from "next/navigation";
 import { updateLead, addCall, updateCall, deleteCall, addLeadAttachment, deleteLeadAttachment } from "@/app/actions";
 import {
@@ -423,6 +424,16 @@ export default function LeadDetailClient({
                   ＋ URLを追加（ホームページが複数ある場合）
                 </button>
               </div>
+            </Field>
+            <Field label="PHP判定" full>
+              <PhpInfo
+                leadId={lead.id}
+                version={lead.php_version ?? ""}
+                status={lead.php_status ?? ""}
+                note={lead.php_note ?? ""}
+                checkedAt={lead.php_checked_at ?? null}
+                hasUrl={!!form.url.trim()}
+              />
             </Field>
             <Field label="メールアドレス">
               <input className={inputCls} value={form.email} onChange={(e) => setField("email", e.target.value)} />
