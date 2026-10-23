@@ -442,6 +442,17 @@ export async function updateProfile(
   patch: { display_name?: string | null; role?: string; team_lead_id?: string | null; org_name?: string | null }
 ) {
   const supabase = await createClient();
+  // チームリーダーを新しく設定するときは、同じ会社のメンバーだけ選べる（間違い防止）
+  if (patch.team_lead_id) {
+    const { data: cur } = await supabase.from("profiles").select("team_lead_id,org_name").eq("id", id).maybeSingle();
+    if (cur && cur.team_lead_id !== patch.team_lead_id) {
+      const { data: leader } = await supabase.from("profiles").select("org_name").eq("id", patch.team_lead_id).maybeSingle();
+      const memberOrg = patch.org_name !== undefined ? patch.org_name : cur.org_name;
+      if (!leader || (leader.org_name ?? null) !== (memberOrg ?? null)) {
+        throw new Error("チームリーダーに選べるのは、同じ会社のメンバーだけです。");
+      }
+    }
+  }
   const { error } = await supabase.from("profiles").update(patch).eq("id", id);
   if (error) throw new Error(error.message);
   revalidatePath("/members");
@@ -463,9 +474,16 @@ export async function setExtraLeaders(memberId: string, leaderIds: string[]) {
 
   const unique = Array.from(new Set(leaderIds)).filter((id) => id !== memberId && id !== member.team_lead_id);
   if (unique.length > 0) {
-    const { data: leaders } = await supabase.from("profiles").select("id,role").in("id", unique);
-    const ok = new Set(((leaders ?? []) as { id: string; role: Role }[]).filter((l) => l.role === leaderRole).map((l) => l.id));
-    if (unique.some((id) => !ok.has(id))) throw new Error("チームリーダーに選べないメンバーが含まれています。");
+    const { data: leaders } = await supabase.from("profiles").select("id,role,org_name").in("id", unique);
+    const { data: existing } = await supabase.from("profile_extra_leaders").select("leader_id").eq("member_id", memberId);
+    const already = new Set(((existing ?? []) as { leader_id: string }[]).map((r) => r.leader_id));
+    const ok = new Set(
+      ((leaders ?? []) as { id: string; role: Role; org_name: string | null }[])
+        // 同じ会社のメンバーだけ（すでに設定済みの人は、そのまま残せる）
+        .filter((l) => l.role === leaderRole && ((l.org_name ?? null) === (member.org_name ?? null) || already.has(l.id)))
+        .map((l) => l.id)
+    );
+    if (unique.some((id) => !ok.has(id))) throw new Error("チームリーダーに選べるのは、同じ会社のメンバーだけです。");
   }
 
   const admin = createAdminClient();

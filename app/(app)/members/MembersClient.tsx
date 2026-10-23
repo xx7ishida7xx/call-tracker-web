@@ -393,7 +393,15 @@ function MemberRow({
   // 「今選んでいるロールに応じたまとめ役」だけを選択肢に出す
   const leaderRoleFor: Partial<Record<Role, Role>> = { staff: "teamlead", guest_member: "guest_admin" };
   const leaderRole = leaderRoleFor[role];
-  const teamLeadOptions = leaderRole ? roster.filter((r) => r.role === leaderRole && r.id !== member.id) : [];
+  // 間違いを防ぐため、チームリーダーに選べるのは「同じ会社」のメンバーだけ。
+  // （すでに別の会社の人が設定されている場合だけは、消えてしまわないよう「別の会社」と付けて残す）
+  const selectedOrgName = companies.find((c) => c.id === companyId)?.name ?? null;
+  const sameOrg = (r: Profile) => (r.org_name ?? null) === selectedOrgName;
+  const keepIds = new Set([member.team_lead_id, ...(member.extra_team_lead_ids ?? [])].filter(Boolean) as string[]);
+  const teamLeadOptions = leaderRole
+    ? roster.filter((r) => r.role === leaderRole && r.id !== member.id && (sameOrg(r) || keepIds.has(r.id)))
+    : [];
+  const leaderLabel = (r: Profile) => (sameOrg(r) ? nameFor(r) : `${nameFor(r)}（別の会社）`);
 
   function save() {
     setError(null);
@@ -483,7 +491,7 @@ function MemberRow({
               <option value="">なし</option>
               {teamLeadOptions.map((t) => (
                 <option key={t.id} value={t.id}>
-                  {nameFor(t)}
+                  {leaderLabel(t)}
                 </option>
               ))}
             </select>
@@ -514,7 +522,7 @@ function MemberRow({
                               setExtraLeaderIds((prev) => (e.target.checked ? [...prev, t.id] : prev.filter((x) => x !== t.id)))
                             }
                           />
-                          {nameFor(t)}
+                          {leaderLabel(t)}
                         </label>
                       ))}
                   </div>
