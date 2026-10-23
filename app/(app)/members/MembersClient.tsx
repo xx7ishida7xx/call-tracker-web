@@ -346,6 +346,7 @@ function MemberRow({
   const [role, setRole] = useState<Role>(member.role);
   const [teamLeadId, setTeamLeadId] = useState(member.team_lead_id ?? "");
   const [extraLeaderIds, setExtraLeaderIds] = useState<string[]>(member.extra_team_lead_ids ?? []);
+  const [showExtra, setShowExtra] = useState(false);
   const homeCompany = companies.find((c) => c.is_home);
   const initialCompanyId =
     companies.find((c) => c.name === member.org_name)?.id ?? (member.org_name ? "" : homeCompany?.id ?? "");
@@ -487,25 +488,38 @@ function MemberRow({
               ))}
             </select>
             {canManageMembers(me) && teamLeadOptions.filter((t) => t.id !== teamLeadId).length > 0 && (
-              <fieldset className="rounded-lg border border-slate-200 px-2.5 py-1.5">
-                <legend className="px-1 text-[11px] font-semibold text-slate-500">追加のチームリーダー</legend>
-                <div className="flex flex-col gap-1">
-                  {teamLeadOptions
-                    .filter((t) => t.id !== teamLeadId)
-                    .map((t) => (
-                      <label key={t.id} className="flex items-center gap-1.5 text-xs text-slate-700">
-                        <input
-                          type="checkbox"
-                          checked={extraLeaderIds.includes(t.id)}
-                          onChange={(e) =>
-                            setExtraLeaderIds((prev) => (e.target.checked ? [...prev, t.id] : prev.filter((x) => x !== t.id)))
-                          }
-                        />
-                        {nameFor(t)}
-                      </label>
-                    ))}
-                </div>
-              </fieldset>
+              <div className="text-xs">
+                <button
+                  type="button"
+                  onClick={() => setShowExtra((v) => !v)}
+                  className="text-slate-500 underline decoration-dotted underline-offset-2 hover:text-orange-700"
+                >
+                  {extraLeaderIds.filter((id) => id !== teamLeadId).length > 0
+                    ? `追加：${extraLeaderIds
+                        .filter((id) => id !== teamLeadId)
+                        .map((id) => nameFor(roster.find((r) => r.id === id)))
+                        .join("、")}`
+                    : "＋ チームリーダーを追加"}
+                </button>
+                {showExtra && (
+                  <div className="mt-1.5 flex flex-col gap-1 rounded-lg border border-slate-200 bg-white px-2.5 py-2">
+                    {teamLeadOptions
+                      .filter((t) => t.id !== teamLeadId)
+                      .map((t) => (
+                        <label key={t.id} className="flex items-center gap-1.5 text-xs text-slate-700">
+                          <input
+                            type="checkbox"
+                            checked={extraLeaderIds.includes(t.id)}
+                            onChange={(e) =>
+                              setExtraLeaderIds((prev) => (e.target.checked ? [...prev, t.id] : prev.filter((x) => x !== t.id)))
+                            }
+                          />
+                          {nameFor(t)}
+                        </label>
+                      ))}
+                  </div>
+                )}
+              </div>
             )}
           </div>
         ) : (
