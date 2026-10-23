@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
+import { attachExtraLeaders } from "@/lib/extraLeaders";
 import { getCurrentProfile } from "@/lib/auth";
 import { canManageMembers, isGuestRole, manageableProfiles, nameFor, type Profile } from "@/lib/types";
 import { currentMonthKey, formatMonthLabel, shiftMonthKey } from "@/lib/format";
@@ -77,7 +78,7 @@ export default async function GoalsCalendarPage({
 
   const supabase = await createClient();
   const { data: rosterData } = await supabase.from("profiles").select("*").order("role");
-  const roster = (rosterData as Profile[]) ?? [];
+  const roster = await attachExtraLeaders(supabase, (rosterData as Profile[]) ?? []);
 
   const sp = await searchParams;
   const thisMonth = currentMonthKey();

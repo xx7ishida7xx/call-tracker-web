@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
+import { attachExtraLeaders } from "@/lib/extraLeaders";
 import { getCurrentProfile } from "@/lib/auth";
 import {
   canManageMembers,
@@ -7,6 +8,7 @@ import {
   canViewProfileGoals,
   manageableProfiles,
   isGuestRole,
+  isLeaderOf,
   nameFor,
   type Profile,
 } from "@/lib/types";
@@ -77,7 +79,7 @@ function resolveScope(scopeParam: string | undefined, me: Profile, roster: Profi
   if (kindRaw === "team" && key) {
     const leader = byId.get(key);
     if (leader && (leader.id === me.id || canManageMembers(me))) {
-      const members = roster.filter((p) => p.team_lead_id === key);
+      const members = roster.filter((p) => isLeaderOf(key, p));
       const ids = Array.from(new Set([key, ...members.map((p) => p.id)]));
       return {
         kind: "team",
@@ -107,7 +109,7 @@ function resolveScope(scopeParam: string | undefined, me: Profile, roster: Profi
     return { kind: "all", label: "全社", profileIds: roster.map((p) => p.id), editableProfile: null, guestOnly: false };
   }
   if (me.role === "teamlead" || me.role === "guest_admin") {
-    const members = roster.filter((p) => p.team_lead_id === me.id);
+    const members = roster.filter((p) => isLeaderOf(me.id, p));
     const ids = Array.from(new Set([me.id, ...members.map((p) => p.id)]));
     return {
       kind: "team",
@@ -151,7 +153,7 @@ export default async function GoalsPage({
 
   const supabase = await createClient();
   const { data: rosterData } = await supabase.from("profiles").select("*").order("role");
-  const roster = (rosterData as Profile[]) ?? [];
+  const roster = await attachExtraLeaders(supabase, (rosterData as Profile[]) ?? []);
 
   const sp = await searchParams;
   const thisMonth = currentMonthKey();

@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { headers } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { attachExtraLeaders } from "@/lib/extraLeaders";
 import { getCurrentProfile } from "@/lib/auth";
 import { parseLeadsCsv } from "@/lib/csv";
 import { APO_KIN_STATUS, resolveStatusAfterCall, canManageMembers, canManageProfileGoals, ATTACHMENT_CATEGORIES, MAX_ATTACHMENT_SIZE, type AttachmentCategory, type Lead, type Profile, type Role } from "@/lib/types";
@@ -444,6 +445,39 @@ export async function updateProfile(
   const { error } = await supabase.from("profiles").update(patch).eq("id", id);
   if (error) throw new Error(error.message);
   revalidatePath("/members");
+}
+
+// 「追加のチームリーダー」を保存する（メインのチームリーダーとは別に、何人でもつけられる）。
+// 変更できるのは、そのメンバーのプロフィールを編集できる人（管理者・オーナー）。
+export async function setExtraLeaders(memberId: string, leaderIds: string[]) {
+  const me = await getCurrentProfile();
+  if (!me) throw new Error("ログインが必要です。");
+  const supabase = await createClient();
+  const { data: member } = await supabase.from("profiles").select("*").eq("id", memberId).maybeSingle();
+  if (!member) throw new Error("対象のメンバーが見つかりません。");
+  if (!canManageMembers(me)) {
+    throw new Error("チームリーダーを変更する権限がありません。");
+  }
+  const leaderRole: Role | undefined = member.role === "staff" ? "teamlead" : member.role === "guest_member" ? "guest_admin" : undefined;
+  if (!leaderRole) throw new Error("このロールのメンバーにはチームリーダーを設定できません。");
+
+  const unique = Array.from(new Set(leaderIds)).filter((id) => id !== memberId && id !== member.team_lead_id);
+  if (unique.length > 0) {
+    const { data: leaders } = await supabase.from("profiles").select("id,role").in("id", unique);
+    const ok = new Set(((leaders ?? []) as { id: string; role: Role }[]).filter((l) => l.role === leaderRole).map((l) => l.id));
+    if (unique.some((id) => !ok.has(id))) throw new Error("チームリーダーに選べないメンバーが含まれています。");
+  }
+
+  const admin = createAdminClient();
+  const { error: delErr } = await admin.from("profile_extra_leaders").delete().eq("member_id", memberId);
+  if (delErr) throw new Error(delErr.message);
+  if (unique.length > 0) {
+    const { error } = await admin.from("profile_extra_leaders").insert(unique.map((leader_id) => ({ member_id: memberId, leader_id })));
+    if (error) throw new Error(error.message);
+  }
+  revalidatePath("/members");
+  revalidatePath("/goals");
+  revalidatePath("/calls");
 }
 
 // ---------------------------------------------------------------------------
@@ -1113,8 +1147,9 @@ async function requireManageGoalsFor(profileId: string): Promise<Profile> {
   const supabase = await createClient();
   const me = await getCurrentProfile();
   if (!me) throw new Error("ログインが必要です。");
-  const { data: target } = await supabase.from("profiles").select("*").eq("id", profileId).maybeSingle();
-  if (!target) throw new Error("対象のメンバーが見つかりません。");
+  const { data: targetRow } = await supabase.from("profiles").select("*").eq("id", profileId).maybeSingle();
+  if (!targetRow) throw new Error("対象のメンバーが見つかりません。");
+  const [target] = await attachExtraLeaders(supabase, [targetRow as Profile]);
   if (!canManageProfileGoals(me, target as Profile)) {
     throw new Error("このメンバーの目標・カレンダーを変更する権限がありません。");
   }

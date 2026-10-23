@@ -9,8 +9,9 @@ import {
   renameCompany,
   sendMemberPasswordReset,
   updateProfile,
+  setExtraLeaders,
 } from "@/app/actions";
-import { canEditProfile, nameFor, ROLE_LABEL, ROLE_ORDER, type Profile, type Role } from "@/lib/types";
+import { canEditProfile, canManageMembers, nameFor, ROLE_LABEL, ROLE_ORDER, type Profile, type Role } from "@/lib/types";
 import { companyLabel, type Company } from "@/lib/companies";
 import { formatDateTime } from "@/lib/format";
 import { btnPrimaryCls, btnSecondarySmCls, cardCls, errorCls, inputCls, sectionTitleCls, successCls } from "@/lib/ui";
@@ -344,6 +345,7 @@ function MemberRow({
   const [displayName, setDisplayName] = useState(member.display_name ?? "");
   const [role, setRole] = useState<Role>(member.role);
   const [teamLeadId, setTeamLeadId] = useState(member.team_lead_id ?? "");
+  const [extraLeaderIds, setExtraLeaderIds] = useState<string[]>(member.extra_team_lead_ids ?? []);
   const homeCompany = companies.find((c) => c.is_home);
   const initialCompanyId =
     companies.find((c) => c.name === member.org_name)?.id ?? (member.org_name ? "" : homeCompany?.id ?? "");
@@ -403,6 +405,12 @@ function MemberRow({
             : {}),
           ...(editable ? { team_lead_id: leaderRole ? teamLeadId || null : null } : {}),
         });
+        if (leaderRole && canManageMembers(me)) {
+          await setExtraLeaders(
+            member.id,
+            extraLeaderIds.filter((id) => id !== teamLeadId)
+          );
+        }
         setSaved(true);
         setTimeout(() => setSaved(false), 2000);
       } catch (e) {
@@ -469,16 +477,46 @@ function MemberRow({
         {!leaderRole ? (
           <span className="text-slate-300">—</span>
         ) : editable ? (
-          <select className={inputCls} value={teamLeadId} onChange={(e) => setTeamLeadId(e.target.value)}>
-            <option value="">なし</option>
-            {teamLeadOptions.map((t) => (
-              <option key={t.id} value={t.id}>
-                {nameFor(t)}
-              </option>
-            ))}
-          </select>
+          <div className="flex flex-col gap-2">
+            <select className={inputCls} value={teamLeadId} onChange={(e) => setTeamLeadId(e.target.value)}>
+              <option value="">なし</option>
+              {teamLeadOptions.map((t) => (
+                <option key={t.id} value={t.id}>
+                  {nameFor(t)}
+                </option>
+              ))}
+            </select>
+            {canManageMembers(me) && teamLeadOptions.filter((t) => t.id !== teamLeadId).length > 0 && (
+              <fieldset className="rounded-lg border border-slate-200 px-2.5 py-1.5">
+                <legend className="px-1 text-[11px] font-semibold text-slate-500">追加のチームリーダー</legend>
+                <div className="flex flex-col gap-1">
+                  {teamLeadOptions
+                    .filter((t) => t.id !== teamLeadId)
+                    .map((t) => (
+                      <label key={t.id} className="flex items-center gap-1.5 text-xs text-slate-700">
+                        <input
+                          type="checkbox"
+                          checked={extraLeaderIds.includes(t.id)}
+                          onChange={(e) =>
+                            setExtraLeaderIds((prev) => (e.target.checked ? [...prev, t.id] : prev.filter((x) => x !== t.id)))
+                          }
+                        />
+                        {nameFor(t)}
+                      </label>
+                    ))}
+                </div>
+              </fieldset>
+            )}
+          </div>
         ) : (
-          roster.find((r) => r.id === member.team_lead_id)?.name ?? "なし"
+          <div>
+            {roster.find((r) => r.id === member.team_lead_id)?.name ?? "なし"}
+            {(member.extra_team_lead_ids ?? []).length > 0 && (
+              <div className="text-xs text-slate-500">
+                追加：{(member.extra_team_lead_ids ?? []).map((id) => nameFor(roster.find((r) => r.id === id))).join("、")}
+              </div>
+            )}
+          </div>
         )}
       </td>
       <td className="px-4 py-2.5 text-slate-500">

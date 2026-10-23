@@ -31,6 +31,7 @@ export interface Profile {
   role: Role;
   is_owner: boolean;
   team_lead_id: string | null;
+  extra_team_lead_ids?: string[]; // 追加のチームリーダー（profile_extra_leaders。画面側で付ける）
   org_name: string | null; // 所属する会社名（companies テーブルの名前と一致。社内・ゲストとも設定する）
   created_at: string;
   updated_at: string;
@@ -385,10 +386,15 @@ export function canEditProfile(me: Profile | null, target: Profile): boolean {
 // 「本人」は対象に含めない（管理者・オーナー・直属の上司のみが登録・変更できる）。
 // データベース側（Supabase RLS）の can_manage_profile_goals と同じロジック。
 // ==========================================================================
+// 指定した人が、target のチームリーダー（メインまたは追加）かどうか
+export function isLeaderOf(leaderId: string, target: Pick<Profile, "team_lead_id" | "extra_team_lead_ids">): boolean {
+  return target.team_lead_id === leaderId || (target.extra_team_lead_ids ?? []).includes(leaderId);
+}
+
 export function canManageProfileGoals(me: Profile | null, target: Profile): boolean {
   if (!me) return false;
   if (me.is_owner || me.role === "admin") return true;
-  if ((me.role === "teamlead" || me.role === "guest_admin") && target.team_lead_id === me.id) return true;
+  if ((me.role === "teamlead" || me.role === "guest_admin") && isLeaderOf(me.id, target)) return true;
   return false;
 }
 

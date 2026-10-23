@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { attachExtraLeaders } from "@/lib/extraLeaders";
 import { getCurrentProfile } from "@/lib/auth";
 import { canManageMembers, nameFor, type Profile } from "@/lib/types";
 import { getCompanies } from "@/lib/companies";
@@ -23,7 +24,7 @@ export default async function MembersPage() {
 
   const supabase = await createClient();
   const { data } = await supabase.from("profiles").select("*").order("created_at");
-  const roster = (data as Profile[]) ?? [];
+  const roster = await attachExtraLeaders(supabase, (data as Profile[]) ?? []);
   const companies = await getCompanies(supabase);
 
   // 「招待したのに本人がまだ一度もログインしていない」に気づけるように、
