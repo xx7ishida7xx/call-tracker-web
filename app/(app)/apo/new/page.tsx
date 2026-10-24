@@ -33,16 +33,16 @@ export default async function NewApoPage({ searchParams }: { searchParams: Promi
   return (
     <div className="flex max-w-3xl flex-col gap-4">
       <div>
-        <Link href="/apo" className="text-xs font-semibold text-slate-500 hover:text-orange-700">
+        <Link href="/apo" className="text-[13.7px] font-semibold text-slate-500 hover:text-orange-700">
           ← アポ表の一覧へ
         </Link>
         <h1 className="text-lg font-bold tracking-tight text-slate-900">新しいアポ表を作る</h1>
-        <p className="mt-0.5 text-xs text-slate-500">アポ表を作るリードを選んでください。選んだリードの情報が入力欄に入った状態で開きます。</p>
+        <p className="mt-0.5 text-[13.7px] text-slate-500">アポ表を作るリードを選んでください。選んだリードの情報が入力欄に入った状態で開きます。</p>
       </div>
 
       {!sp.lead && (
         <form method="get" className={`flex flex-wrap items-end gap-2 p-4 ${cardCls}`}>
-          <label className="flex min-w-60 flex-1 flex-col gap-1 text-xs font-semibold text-slate-500">
+          <label className="flex min-w-60 flex-1 flex-col gap-1 text-[13.7px] font-semibold text-slate-500">
             会社名・電話番号で検索
             <input name="q" defaultValue={sp.q ?? ""} placeholder="例：花季 / 047-482" className={inputCls} autoFocus />
           </label>
@@ -61,7 +61,7 @@ export default async function NewApoPage({ searchParams }: { searchParams: Promi
               <div key={l.id} className="flex flex-wrap items-center gap-3 px-4 py-3">
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-sm font-semibold text-slate-900">{l.company || "（会社名なし）"}</p>
-                  <p className="truncate text-xs text-slate-500">
+                  <p className="truncate text-[13.7px] text-slate-500">
                     {l.phone}　{l.address}　［{l.status}］
                   </p>
                 </div>

@@ -28,7 +28,7 @@ function DayGrid({
   const leadingBlanks = Array.from({ length: firstDow });
   return (
     <div className="flex flex-col gap-1.5">
-      <div className="grid grid-cols-7 gap-1.5 text-center text-[11px] font-semibold text-slate-400">
+      <div className="grid grid-cols-7 gap-1.5 text-center text-xs font-semibold text-slate-400">
         {WEEKDAY_LABELS.map((label) => (
           <div key={label}>{label}</div>
         ))}
@@ -45,7 +45,7 @@ function DayGrid({
             <label
               key={date}
               title={holidayName}
-              className={`flex flex-col items-center gap-0.5 rounded-lg border p-1.5 text-[11px] ${
+              className={`flex flex-col items-center gap-0.5 rounded-lg border p-1.5 text-xs ${
                 editable ? "cursor-pointer" : ""
               } ${isWorking ? "border-slate-200 bg-white text-slate-700" : "border-slate-100 bg-slate-50 text-slate-400"} ${
                 date === today ? "ring-2 ring-orange-300" : ""
@@ -59,7 +59,7 @@ function DayGrid({
                 disabled={!editable}
                 className="h-4 w-4 accent-orange-600 disabled:opacity-60"
               />
-              <span className="h-3 truncate text-[9px] text-slate-300">{holidayName ?? ""}</span>
+              <span className="h-3 truncate text-xs text-slate-300">{holidayName ?? ""}</span>
             </label>
           );
         })}
@@ -141,7 +141,7 @@ export default async function GoalsCalendarPage({
       {/* 会社全体の休み(創業記念日・年末年始休業など)。土曜日など、平日以外を出勤日にすることもできます。 */}
       <section className={`${cardCls} p-5`}>
         <h2 className={sectionTitleCls}>会社全体の休み・出勤日</h2>
-        <p className="mt-1 text-xs text-slate-500">
+        <p className="mt-1 text-[13.7px] text-slate-500">
           何も登録しない日は、土日・祝日は休み、それ以外は稼働日として扱われます。チェックを外すと休みに、入れると出勤日になります(土曜日の出勤日設定もここから行えます)。
           {!canManageCompany && "編集できるのは管理者・オーナーのみです。"}
         </p>
@@ -172,7 +172,7 @@ export default async function GoalsCalendarPage({
       {manageable.length > 0 && (
         <section className={`${cardCls} p-5`}>
           <h2 className={sectionTitleCls}>個人の休み(有給など)</h2>
-          <p className="mt-1 text-xs text-slate-500">
+          <p className="mt-1 text-[13.7px] text-slate-500">
             会社全体の設定より、こちらの個人設定が優先されます。対象メンバーを選んでチェックを変更してください。
           </p>
           <div className="mt-3 flex flex-wrap gap-2">
@@ -180,7 +180,7 @@ export default async function GoalsCalendarPage({
               <Link
                 key={p.id}
                 href={`/goals/calendar?month=${month}&member=${p.id}`}
-                className={`rounded-lg border px-3 py-1.5 text-xs font-semibold transition ${
+                className={`rounded-lg border px-3 py-1.5 text-[13.7px] font-semibold transition ${
                   p.id === selectedMemberId
                     ? "border-orange-300 bg-orange-100 text-orange-800"
                     : "border-slate-300 bg-white text-slate-600 hover:border-orange-300 hover:bg-orange-50"
@@ -194,7 +194,7 @@ export default async function GoalsCalendarPage({
             <form action={saveWorkDayOverrides.bind(null, selectedMember.id, month)} className="mt-4 flex flex-col gap-3">
               <p className="text-sm font-semibold text-slate-700">{nameFor(selectedMember)} さんの{formatMonthLabel(month)}</p>
               {isGuestRole(selectedMember.role) && (
-                <p className="-mt-2 text-xs text-slate-400">
+                <p className="-mt-2 text-[13.7px] text-slate-400">
                   ゲストのため、会社全体の休日設定は反映されません。個人で登録した日だけが優先され、それ以外は通常の曜日・祝日どおりの判定になります。
                 </p>
               )}

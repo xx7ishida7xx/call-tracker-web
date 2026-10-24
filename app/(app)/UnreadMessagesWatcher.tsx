@@ -51,7 +51,7 @@ export default function UnreadMessagesWatcher({ meId, initialCount }: { meId: st
   return (
     <div className="fixed bottom-4 left-4 z-50 flex w-[calc(100vw-2rem)] max-w-80 flex-col gap-1.5 rounded-xl border border-rose-200 bg-white p-3 shadow-lg shadow-rose-100/50 sm:left-64">
       <div className="flex items-start justify-between gap-2">
-        <p className="text-xs font-bold text-rose-600">自分宛の新着メッセージがあります</p>
+        <p className="text-[13.7px] font-bold text-rose-600">自分宛の新着メッセージがあります</p>
         <button
           type="button"
           onClick={() => setToast(null)}
@@ -65,7 +65,7 @@ export default function UnreadMessagesWatcher({ meId, initialCount }: { meId: st
       <Link
         href="/messages"
         onClick={() => setToast(null)}
-        className="text-xs font-semibold text-orange-600 hover:underline"
+        className="text-[13.7px] font-semibold text-orange-600 hover:underline"
       >
         メッセージを確認する →
       </Link>

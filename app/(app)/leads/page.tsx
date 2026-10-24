@@ -283,9 +283,9 @@ export default async function LeadsPage({ searchParams }: { searchParams: Promis
 
           <FilterGroup title="コール履歴">
             {canManage && (
-              <label className="flex flex-col gap-1 text-xs font-semibold text-slate-500">
+              <label className="flex flex-col gap-1 text-[13.7px] font-semibold text-slate-500">
                 コール者
-                <select name="caller" defaultValue={sp.caller || ""} className={`w-40 ${inputCls}`}>
+                <select name="caller" defaultValue={sp.caller || ""} className={`w-48 ${inputCls}`}>
                   <option value="">未選択</option>
                   {roster.map((r) => (
                     <option key={r.id} value={r.id}>
@@ -295,9 +295,9 @@ export default async function LeadsPage({ searchParams }: { searchParams: Promis
                 </select>
               </label>
             )}
-            <label className="flex flex-col gap-1 text-xs font-semibold text-slate-500">
+            <label className="flex flex-col gap-1 text-[13.7px] font-semibold text-slate-500">
               結果
-              <select name="call_result" defaultValue={sp.call_result || ""} className={`w-36 ${inputCls}`}>
+              <select name="call_result" defaultValue={sp.call_result || ""} className={`w-44 ${inputCls}`}>
                 <option value="">未選択</option>
                 {CALL_RESULT_FLAT_OPTIONS.map((r) => (
                   <option key={r} value={r}>
@@ -333,33 +333,33 @@ export default async function LeadsPage({ searchParams }: { searchParams: Promis
           </FilterGroup>
 
           <FilterGroup title="次回アタック日">
-            <label className="flex flex-col gap-1 text-xs font-semibold text-slate-500">
+            <label className="flex flex-col gap-1 text-[13.7px] font-semibold text-slate-500">
               から
               <input type="date" name="recall_from" defaultValue={sp.recall_from} className={inputCls} />
             </label>
-            <label className="flex flex-col gap-1 text-xs font-semibold text-slate-500">
+            <label className="flex flex-col gap-1 text-[13.7px] font-semibold text-slate-500">
               まで
               <input type="date" name="recall_to" defaultValue={sp.recall_to} className={inputCls} />
             </label>
           </FilterGroup>
 
           <FilterGroup title="顧客名・電話番号">
-            <label className="flex flex-col gap-1 text-xs font-semibold text-slate-500">
+            <label className="flex flex-col gap-1 text-[13.7px] font-semibold text-slate-500">
               顧客名（部分一致）
               <input type="text" name="company" defaultValue={sp.company} className={`w-48 ${inputCls}`} />
             </label>
-            <label className="flex flex-col gap-1 text-xs font-semibold text-slate-500">
+            <label className="flex flex-col gap-1 text-[13.7px] font-semibold text-slate-500">
               電話番号（前方一致）
-              <input type="text" name="phone_prefix" defaultValue={sp.phone_prefix} className={`w-40 ${inputCls}`} />
+              <input type="text" name="phone_prefix" defaultValue={sp.phone_prefix} className={`w-48 ${inputCls}`} />
             </label>
           </FilterGroup>
 
           <FilterGroup title="代表者・担当者">
-            <label className="flex flex-col gap-1 text-xs font-semibold text-slate-500">
+            <label className="flex flex-col gap-1 text-[13.7px] font-semibold text-slate-500">
               代表者（部分一致）
-              <input type="text" name="rep" defaultValue={sp.rep} className={`w-40 ${inputCls}`} />
+              <input type="text" name="rep" defaultValue={sp.rep} className={`w-48 ${inputCls}`} />
             </label>
-            <div className="flex flex-col gap-1 text-xs font-semibold text-slate-500">
+            <div className="flex flex-col gap-1 text-[13.7px] font-semibold text-slate-500">
               <label htmlFor="credit_company_input">担当者（部分一致）</label>
               <div className="flex items-center gap-3">
                 <input
@@ -367,7 +367,7 @@ export default async function LeadsPage({ searchParams }: { searchParams: Promis
                   type="text"
                   name="credit_company"
                   defaultValue={sp.credit_company}
-                  className={`w-40 ${inputCls}`}
+                  className={`w-48 ${inputCls}`}
                 />
                 {/* チェックすると、担当者名（顧客側）が入力済みのリードだけを検索する */}
                 <label className="flex items-center gap-1.5 whitespace-nowrap text-sm font-semibold text-slate-600">
@@ -385,7 +385,7 @@ export default async function LeadsPage({ searchParams }: { searchParams: Promis
           </FilterGroup>
 
           <FilterGroup title="既存契約">
-            <label className="flex flex-col gap-1 text-xs font-semibold text-slate-500">
+            <label className="flex flex-col gap-1 text-[13.7px] font-semibold text-slate-500">
               ホームページ有無
               <select name="has_url" defaultValue={sp.has_url || ""} className={inputCls}>
                 <option value="">未選択</option>
@@ -393,7 +393,7 @@ export default async function LeadsPage({ searchParams }: { searchParams: Promis
                 <option value="no">なし</option>
               </select>
             </label>
-            <label className="flex flex-col gap-1 text-xs font-semibold text-slate-500">
+            <label className="flex flex-col gap-1 text-[13.7px] font-semibold text-slate-500">
               MEO有無
               <select name="has_meo" defaultValue={sp.has_meo || ""} className={inputCls}>
                 <option value="">未選択</option>
@@ -401,7 +401,7 @@ export default async function LeadsPage({ searchParams }: { searchParams: Promis
                 <option value="no">なし</option>
               </select>
             </label>
-            <label className="flex flex-col gap-1 text-xs font-semibold text-slate-500">
+            <label className="flex flex-col gap-1 text-[13.7px] font-semibold text-slate-500">
               SNS運用有無
               <select name="has_sns" defaultValue={sp.has_sns || ""} className={inputCls}>
                 <option value="">未選択</option>
@@ -412,7 +412,7 @@ export default async function LeadsPage({ searchParams }: { searchParams: Promis
           </FilterGroup>
 
           <FilterGroup title="ステータス・担当">
-            <label className="flex flex-col gap-1 text-xs font-semibold text-slate-500">
+            <label className="flex flex-col gap-1 text-[13.7px] font-semibold text-slate-500">
               ステータス
               <select name="status" defaultValue={sp.status || ""} className={inputCls}>
                 <option value="">すべて</option>
@@ -424,7 +424,7 @@ export default async function LeadsPage({ searchParams }: { searchParams: Promis
               </select>
             </label>
             {canManage && (
-              <label className="flex flex-col gap-1 text-xs font-semibold text-slate-500">
+              <label className="flex flex-col gap-1 text-[13.7px] font-semibold text-slate-500">
                 担当者
                 <select name="assignee" defaultValue={sp.assignee || ""} className={inputCls}>
                   <option value="">すべて</option>
@@ -439,7 +439,7 @@ export default async function LeadsPage({ searchParams }: { searchParams: Promis
           </FilterGroup>
 
           <FilterGroup title="やる気度">
-            <label className="flex flex-col gap-1 text-xs font-semibold text-slate-500">
+            <label className="flex flex-col gap-1 text-[13.7px] font-semibold text-slate-500">
               集客意欲
               <select name="acquisition_desire" defaultValue={sp.acquisition_desire || ""} className={inputCls}>
                 <option value="">未選択</option>
@@ -478,7 +478,7 @@ export default async function LeadsPage({ searchParams }: { searchParams: Promis
           <div className={`overflow-x-auto ${cardCls}`}>
             <table className="w-full min-w-[840px] text-sm">
               <thead>
-                <tr className="border-b border-orange-100 bg-orange-50/60 text-left text-xs font-semibold text-slate-500">
+                <tr className="border-b border-orange-100 bg-orange-50/60 text-left text-[13.7px] font-semibold text-slate-500">
                   <th className="px-4 py-2.5">会社名</th>
                   <th className="whitespace-nowrap px-4 py-2.5">都道府県</th>
                   <th className="whitespace-nowrap px-4 py-2.5">電話番号</th>
@@ -497,7 +497,7 @@ export default async function LeadsPage({ searchParams }: { searchParams: Promis
                         {lead.company || "（会社名未登録）"}
                       </Link>
                       {unreadLeadIds.has(lead.id) && (
-                        <span className="ml-2 rounded-full bg-rose-500 px-2 py-0.5 text-[11px] font-bold text-white">自分宛のメッセージ</span>
+                        <span className="ml-2 rounded-full bg-rose-500 px-2 py-0.5 text-xs font-bold text-white">自分宛のメッセージ</span>
                       )}
                     </td>
                     <td className="whitespace-nowrap px-4 py-2.5 align-top text-slate-600">{lead.pref}</td>
@@ -526,7 +526,7 @@ export default async function LeadsPage({ searchParams }: { searchParams: Promis
                     <td className="whitespace-nowrap px-4 py-2.5 align-top text-slate-500">{formatDateTime(lead.recall_at)}</td>
                     <td className="whitespace-nowrap px-4 py-2.5 align-top">
                       {lead.php_status ? (
-                        <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${PHP_STATUS_BADGE_CLS[lead.php_status] ?? "bg-slate-100 text-slate-500"}`}>
+                        <span className={`rounded-full px-2 py-0.5 text-[13.7px] font-medium ${PHP_STATUS_BADGE_CLS[lead.php_status] ?? "bg-slate-100 text-slate-500"}`}>
                           {lead.php_version ? `${lead.php_version} ` : ""}
                           {lead.php_status}
                         </span>
@@ -615,7 +615,7 @@ export default async function LeadsPage({ searchParams }: { searchParams: Promis
                 {sp.has_meo && <input type="hidden" name="has_meo" value={sp.has_meo} />}
                 {sp.has_sns && <input type="hidden" name="has_sns" value={sp.has_sns} />}
                 {sp.acquisition_desire && <input type="hidden" name="acquisition_desire" value={sp.acquisition_desire} />}
-                <label className="flex items-center gap-1.5 text-xs font-semibold text-slate-500">
+                <label className="flex items-center gap-1.5 text-[13.7px] font-semibold text-slate-500">
                   ページ指定
                   <input type="number" name="page" min={1} max={totalPages} defaultValue={page} className={`w-16 ${inputCls}`} />
                 </label>
@@ -633,7 +633,7 @@ export default async function LeadsPage({ searchParams }: { searchParams: Promis
 
 function StatusBadge({ status }: { status: string }) {
   return (
-    <span className={`inline-block rounded-full px-2.5 py-0.5 text-xs font-semibold ${statusBadgeCls(status)}`}>
+    <span className={`inline-block rounded-full px-2.5 py-0.5 text-[13.7px] font-semibold ${statusBadgeCls(status)}`}>
       {status}
     </span>
   );
@@ -643,7 +643,7 @@ function StatusBadge({ status }: { status: string }) {
 function FilterGroup({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <div className="flex flex-col gap-2 rounded-lg border border-slate-200 bg-slate-50/60 p-3">
-      <p className="text-xs font-bold text-slate-500">{title}</p>
+      <p className="text-[13.7px] font-bold text-slate-500">{title}</p>
       <div className="flex flex-wrap items-end gap-3">{children}</div>
     </div>
   );

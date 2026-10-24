@@ -38,7 +38,7 @@ export default async function ApoListPage() {
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-lg font-bold tracking-tight text-slate-900">アポ表</h1>
-          <p className="mt-0.5 text-xs text-slate-500">
+          <p className="mt-0.5 text-[13.7px] text-slate-500">
             リードを選んでアポ表を作り、Excelでダウンロードするか、リードの添付に登録できます。
           </p>
         </div>
@@ -52,7 +52,7 @@ export default async function ApoListPage() {
           <p className="px-5 py-10 text-center text-sm text-slate-400">まだアポ表がありません。「新しいアポ表を作る」から作成できます。</p>
         ) : (
           <table className="w-full min-w-[640px] text-left text-sm">
-            <thead className="border-b border-slate-100 text-[11px] font-semibold text-slate-500">
+            <thead className="border-b border-slate-100 text-xs font-semibold text-slate-500">
               <tr>
                 <th className="px-4 py-2.5">会社名</th>
                 <th className="px-4 py-2.5">訪問日</th>

@@ -151,11 +151,11 @@ export default function ImportClient({ me, roster }: { me: Profile; roster: Prof
         </div>
 
         {mode === "new" ? (
-          <p className="text-xs text-slate-500">
+          <p className="text-[13.7px] text-slate-500">
             まだ登録されていないリードを新しく追加します。電話番号が既に登録されている行は、重複登録を避けるため自動的にスキップされます（中身の更新はされません）。
           </p>
         ) : (
-          <p className="text-xs text-slate-500">
+          <p className="text-[13.7px] text-slate-500">
             既存のリードの中身を、CSVの内容で更新します。<b>電話番号が一致した行だけ</b>
             が対象で、一致しない行（新しいリード）は何も登録されません。<b>CSVの空欄のセルは「変更しない」</b>
             として扱われるので、触っていない列はそのまま残ります。
@@ -167,7 +167,7 @@ export default function ImportClient({ me, roster }: { me: Profile; roster: Prof
               <input type="radio" name="overwrite" checked={!overwrite} onChange={() => setOverwrite(false)} className="mt-1" />
               <span>
                 <b>空欄だけ埋める（おすすめ）</b>
-                <span className="block text-xs text-slate-500">
+                <span className="block text-[13.7px] text-slate-500">
                   リードの項目がすでに入力済みなら、そのまま残します。画面で手直しした内容を守りたいときや、外部のリストで足りない項目だけ補いたいときに使います。
                 </span>
               </span>
@@ -176,7 +176,7 @@ export default function ImportClient({ me, roster }: { me: Profile; roster: Prof
               <input type="radio" name="overwrite" checked={overwrite} onChange={() => setOverwrite(true)} className="mt-1" />
               <span>
                 <b>入力済みの項目も上書きする</b>
-                <span className="block text-xs text-slate-500">
+                <span className="block text-[13.7px] text-slate-500">
                   エクスポートしたCSVの誤りを直して読み込み直すときなど、CSVの内容を正として置き換えたいときに使います。画面で手直しした内容も、CSVの値で上書きされます。
                 </span>
               </span>
@@ -185,7 +185,7 @@ export default function ImportClient({ me, roster }: { me: Profile; roster: Prof
         )}
 
         {(me.role === "admin" || me.role === "teamlead") && (
-          <p className="mt-1 rounded-lg border border-orange-100 bg-orange-50/60 px-3 py-2 text-xs text-slate-600">
+          <p className="mt-1 rounded-lg border border-orange-100 bg-orange-50/60 px-3 py-2 text-[13.7px] text-slate-600">
             「担当者」列には、担当させたい人の表示名・登録名・メールアドレスのいずれか、または担当させたいゲスト会社名（「会社の管理」で登録した名前と完全一致）を入れておくと、行ごとに自動で割り当てます。
             会社名を入れた行は、その会社のゲスト管理者に割り当てられます（会社に所属する全員が、会社単位で閲覧・架電できるようになります）。
             {mode === "new"
@@ -221,12 +221,12 @@ export default function ImportClient({ me, roster }: { me: Profile; roster: Prof
             {fileName ? (
               <>
                 <span className="font-semibold text-slate-800">{fileName}</span>
-                <span className="text-xs text-slate-500">別のファイルに変える場合は、ここにドロップするか、下のボタンで選び直してください</span>
+                <span className="text-[13.7px] text-slate-500">別のファイルに変える場合は、ここにドロップするか、下のボタンで選び直してください</span>
               </>
             ) : (
               <>
                 <span className="font-semibold text-slate-700">ここにCSVファイルをドラッグ＆ドロップ</span>
-                <span className="text-xs text-slate-500">または下のボタンでファイルを選択</span>
+                <span className="text-[13.7px] text-slate-500">または下のボタンでファイルを選択</span>
               </>
             )}
             <button
@@ -263,7 +263,7 @@ export default function ImportClient({ me, roster }: { me: Profile; roster: Prof
           </label>
         )}
         {mode === "new" && me.role === "teamlead" && (
-          <p className="text-xs text-slate-500">チームリーダーとしてインポートすると、リードは自分に割り当てられます。</p>
+          <p className="text-[13.7px] text-slate-500">チームリーダーとしてインポートすると、リードは自分に割り当てられます。</p>
         )}
 
         {error && <p className={errorCls}>{error}</p>}

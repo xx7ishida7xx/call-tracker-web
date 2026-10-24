@@ -52,7 +52,7 @@ export default function LoginPage() {
 
         <Link
           href="/forgot-password"
-          className="mt-4 block text-center text-xs font-medium text-slate-500 hover:text-orange-600 hover:underline"
+          className="mt-4 block text-center text-[13.7px] font-medium text-slate-500 hover:text-orange-600 hover:underline"
         >
           パスワードをお忘れですか？
         </Link>

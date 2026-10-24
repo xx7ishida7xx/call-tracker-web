@@ -21,7 +21,7 @@ export default async function ApoSheetPage({ params }: { params: Promise<{ id: s
     <div className="flex max-w-5xl flex-col gap-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <Link href="/apo" className="text-xs font-semibold text-slate-500 hover:text-orange-700">
+          <Link href="/apo" className="text-[13.7px] font-semibold text-slate-500 hover:text-orange-700">
             ← アポ表の一覧へ
           </Link>
           <h1 className="text-lg font-bold tracking-tight text-slate-900">アポ表：{data.company || "（会社名未入力）"}</h1>

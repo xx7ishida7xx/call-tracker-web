@@ -146,7 +146,7 @@ export default async function DashboardPage({
       <section className={`${cardCls} p-5`}>
         <div className="mb-3 flex flex-wrap items-baseline justify-between gap-2">
           <h2 className={sectionTitleCls}>本日の架電（{today.label}）</h2>
-          <p className="text-xs text-slate-500">日本時間の0時〜24時で集計しています。</p>
+          <p className="text-[13.7px] text-slate-500">日本時間の0時〜24時で集計しています。</p>
         </div>
         <div className="mb-4 grid grid-cols-2 gap-3 sm:grid-cols-3">
           <StatChip label="本日の架電件数" value={callsToday ?? 0} />
@@ -159,7 +159,7 @@ export default async function DashboardPage({
           <div className="overflow-x-auto">
             <table className="w-full min-w-[360px] text-sm">
               <thead>
-                <tr className="border-b border-orange-100 bg-orange-50/60 text-left text-xs font-semibold text-slate-500">
+                <tr className="border-b border-orange-100 bg-orange-50/60 text-left text-[13.7px] font-semibold text-slate-500">
                   <th className="px-3 py-2">担当者</th>
                   <th className="px-3 py-2 text-right">架電</th>
                   <th className="px-3 py-2 text-right">有効架電</th>
@@ -179,7 +179,7 @@ export default async function DashboardPage({
             </table>
           </div>
         )}
-        <p className="mt-3 text-xs text-slate-400">
+        <p className="mt-3 text-[13.7px] text-slate-400">
           「有効架電」は通話記録画面のチェックボックスで記録された分のみ集計されます。
         </p>
       </section>
@@ -189,7 +189,7 @@ export default async function DashboardPage({
         <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
           <div>
             <h2 className={sectionTitleCls}>月次実績（直近3ヶ月比較）</h2>
-            <p className="mt-1 text-xs text-slate-500">
+            <p className="mt-1 text-[13.7px] text-slate-500">
               コール数・有効コール数・アポ獲得数・成約数の推移です。「有効架電」は通話記録画面のチェックボックスで記録された分のみ集計されます。
             </p>
           </div>
@@ -200,7 +200,7 @@ export default async function DashboardPage({
             <span className="text-sm font-semibold text-slate-700">{formatMonthLabel(refMonth)} 基準</span>
             <Link
               href={`/dashboard?month=${shiftMonthKey(refMonth, 1)}`}
-              className={refMonth >= thisMonth ? "pointer-events-none rounded-lg border border-slate-100 px-3 py-1.5 text-xs text-slate-300" : btnSecondarySmCls}
+              className={refMonth >= thisMonth ? "pointer-events-none rounded-lg border border-slate-100 px-3 py-1.5 text-[13.7px] text-slate-300" : btnSecondarySmCls}
             >
               次月 →
             </Link>
@@ -210,7 +210,7 @@ export default async function DashboardPage({
         <div className="overflow-x-auto">
           <table className="w-full min-w-[560px] text-sm">
             <thead>
-              <tr className="border-b border-orange-100 bg-orange-50/60 text-left text-xs font-semibold text-slate-500">
+              <tr className="border-b border-orange-100 bg-orange-50/60 text-left text-[13.7px] font-semibold text-slate-500">
                 <th className="px-3 py-2">月</th>
                 <th className="px-3 py-2 text-right">コール数</th>
                 <th className="px-3 py-2 text-right">有効コール数</th>
@@ -242,14 +242,14 @@ export default async function DashboardPage({
             </tbody>
           </table>
         </div>
-        <p className="mt-3 text-xs text-slate-400">
+        <p className="mt-3 text-[13.7px] text-slate-400">
           成約数は、リードのステータスが「成約」に変わった日時を基準に集計しています。
         </p>
       </section>
 
       {/* 実績パネル：全体の累計数値をまとめて一覧できるようにしています */}
       <section className="rounded-2xl border border-sky-100 bg-sky-50/60 p-5">
-        <h2 className="mb-3 text-xs font-bold uppercase tracking-wide text-sky-700/80">全体実績（累計）</h2>
+        <h2 className="mb-3 text-[13.7px] font-bold uppercase tracking-wide text-sky-700/80">全体実績（累計）</h2>
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
           <StatChip label="リード総数" value={totalLeads ?? 0} />
           <StatChip label="未割当" value={unassigned ?? 0} />

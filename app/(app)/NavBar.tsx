@@ -11,7 +11,7 @@ export type NavItem = { href: string; label: string; icon: IconName; group?: str
 function Badge({ count, className = "" }: { count?: number; className?: string }) {
   if (!count || count <= 0) return null;
   return (
-    <span className={`flex h-5 min-w-5 items-center justify-center rounded-full bg-rose-500 px-1.5 text-[11px] font-bold leading-none text-white ${className}`}>
+    <span className={`flex h-5 min-w-5 items-center justify-center rounded-full bg-rose-500 px-1.5 text-xs font-bold leading-none text-white ${className}`}>
       {count > 99 ? "99+" : count}
     </span>
   );
@@ -90,7 +90,7 @@ export default function Sidebar({ items }: { items: NavItem[] }) {
         return (
           <div key={item.href}>
             {showGroupLabel && (
-              <p className="mb-1 mt-4 px-3 text-[10px] font-bold uppercase tracking-wider text-slate-500 first:mt-2">
+              <p className="mb-1 mt-4 px-3 text-xs font-bold uppercase tracking-wider text-slate-500 first:mt-2">
                 {item.group}
               </p>
             )}
@@ -129,8 +129,8 @@ export function TopBarNav({ items }: { items: NavItem[] }) {
               href={item.href}
               className={
                 active
-                  ? "flex shrink-0 items-center gap-1.5 rounded-full bg-orange-500/15 px-3 py-1.5 text-xs font-semibold text-orange-300"
-                  : "flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium text-slate-300 transition hover:bg-slate-800 hover:text-white"
+                  ? "flex shrink-0 items-center gap-1.5 rounded-full bg-orange-500/15 px-3 py-1.5 text-[13.7px] font-semibold text-orange-300"
+                  : "flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1.5 text-[13.7px] font-medium text-slate-300 transition hover:bg-slate-800 hover:text-white"
               }
             >
               <Icon name={item.icon} className="h-3.5 w-3.5 shrink-0" />

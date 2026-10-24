@@ -81,7 +81,7 @@ export default function PhpCheckClient({ overview: initial }: { overview: PhpOve
         </div>
         <div className="flex flex-wrap gap-2">
           {PHP_STATUSES.map((s) => (
-            <span key={s} className={`rounded-full px-3 py-1 text-xs font-medium ${PHP_STATUS_BADGE_CLS[s]}`}>
+            <span key={s} className={`rounded-full px-3 py-1 text-[13.7px] font-medium ${PHP_STATUS_BADGE_CLS[s]}`}>
               {s} {(overview.byStatus[s] ?? 0).toLocaleString()}
             </span>
           ))}
@@ -113,7 +113,7 @@ export default function PhpCheckClient({ overview: initial }: { overview: PhpOve
             <div className="h-3 w-full overflow-hidden rounded-full bg-slate-100">
               <div className="h-full bg-orange-500 transition-all" style={{ width: `${pct}%` }} />
             </div>
-            <div className="mt-1 text-xs text-slate-600">
+            <div className="mt-1 text-[13.7px] text-slate-600">
               {done.toLocaleString()} / {target.toLocaleString()}件 {running && "（実行中…）"}
             </div>
           </div>

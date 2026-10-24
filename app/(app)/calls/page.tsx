@@ -139,7 +139,7 @@ export default async function CallsPage({ searchParams }: { searchParams: Promis
           <div className={statChipCls}><span className={statChipLabelCls}>アポ</span><span className={statChipValueCls}>{apo.toLocaleString()}</span></div>
         </div>
         {resultSummary.length > 0 && (
-          <div className="flex flex-wrap gap-2 text-xs">
+          <div className="flex flex-wrap gap-2 text-[13.7px]">
             {resultSummary.map(([r, n]) => (
               <span key={r} className="rounded-full bg-orange-50 px-3 py-1 text-slate-700">
                 {r} {n}
@@ -153,7 +153,7 @@ export default async function CallsPage({ searchParams }: { searchParams: Promis
         {queryError && <div className="p-4 text-sm text-red-600">読み込みに失敗しました：{queryError}</div>}
         <table className="w-full text-sm">
           <thead>
-            <tr className="border-b border-orange-100 bg-orange-50/60 text-left text-xs font-semibold text-slate-500">
+            <tr className="border-b border-orange-100 bg-orange-50/60 text-left text-[13.7px] font-semibold text-slate-500">
               <th className="whitespace-nowrap px-4 py-2.5">時刻</th>
               {member === "all" && <th className="whitespace-nowrap px-4 py-2.5">メンバー</th>}
               <th className="px-4 py-2.5">会社名</th>
@@ -175,16 +175,16 @@ export default async function CallsPage({ searchParams }: { searchParams: Promis
                   ) : (
                     <span className="text-slate-400">（閲覧権限なし）</span>
                   )}
-                  {r.lead?.pref && <span className="ml-2 text-xs text-slate-400">{r.lead.pref}</span>}
+                  {r.lead?.pref && <span className="ml-2 text-[13.7px] text-slate-400">{r.lead.pref}</span>}
                 </td>
                 <td className="whitespace-nowrap px-4 py-2.5">
                   {r.result || "-"}
-                  {r.appointment && <span className="ml-1 rounded bg-emerald-100 px-1.5 text-xs text-emerald-700">アポ</span>}
-                  {r.connected && <span className="ml-1 rounded bg-sky-100 px-1.5 text-xs text-sky-700">有効</span>}
+                  {r.appointment && <span className="ml-1 rounded bg-emerald-100 px-1.5 text-[13.7px] text-emerald-700">アポ</span>}
+                  {r.connected && <span className="ml-1 rounded bg-sky-100 px-1.5 text-[13.7px] text-sky-700">有効</span>}
                 </td>
                 <td className="whitespace-nowrap px-4 py-2.5">
                   {r.rank ?? "-"}
-                  {r.hot && <span className="ml-1 text-xs text-red-600">激アツ</span>}
+                  {r.hot && <span className="ml-1 text-[13.7px] text-red-600">激アツ</span>}
                 </td>
                 <td className="max-w-xs px-4 py-2.5 text-slate-600">{r.notes}</td>
               </tr>
@@ -199,8 +199,8 @@ export default async function CallsPage({ searchParams }: { searchParams: Promis
           </tbody>
         </table>
       </div>
-      {truncated && <p className="text-xs text-slate-500">件数が多いため、新しい順に{MAX_ROWS}件まで表示しています。</p>}
-      <p className="text-xs text-slate-400">
+      {truncated && <p className="text-[13.7px] text-slate-500">件数が多いため、新しい順に{MAX_ROWS}件まで表示しています。</p>}
+      <p className="text-[13.7px] text-slate-400">
         ※ 自分のチームのメンバー（管理者は全員）の記録が見られます。リードの担当者が変わった通話など、閲覧権限のないリードの通話は表示されないことがあります。
       </p>
     </div>

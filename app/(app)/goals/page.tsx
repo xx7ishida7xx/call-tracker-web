@@ -299,7 +299,7 @@ export default async function GoalsPage({
         <div className={`${cardCls} sticky top-4 flex flex-col gap-4 p-4`}>
           {groups.map((g) => (
             <div key={g.group} className="flex flex-col gap-1">
-              <p className="px-1 text-[11px] font-bold uppercase tracking-wide text-slate-400">{g.group}</p>
+              <p className="px-1 text-xs font-bold uppercase tracking-wide text-slate-400">{g.group}</p>
               {g.items.map((item) => (
                 <Link
                   key={item.href}
@@ -342,7 +342,7 @@ export default async function GoalsPage({
 
         {/* 実績サマリー */}
         <section className="rounded-2xl border border-sky-100 bg-sky-50/60 p-5">
-          <h2 className="mb-3 text-xs font-bold uppercase tracking-wide text-sky-700/80">
+          <h2 className="mb-3 text-[13.7px] font-bold uppercase tracking-wide text-sky-700/80">
             {formatMonthLabel(month)}の実績・目標
           </h2>
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
@@ -352,7 +352,7 @@ export default async function GoalsPage({
             <StatChip label="残り稼働日" value={`${remainingWorkingDays} / ${totalWorkingDays}日`} />
           </div>
           {dailyPace !== null && remainingCallsNeeded > 0 && (
-            <p className="mt-3 text-xs text-slate-600">
+            <p className="mt-3 text-[13.7px] text-slate-600">
               コール目標まで残り <span className="font-bold text-orange-700">{remainingCallsNeeded.toLocaleString()}件</span>
               　（残り稼働日から逆算すると、1日あたり
               <span className="font-bold text-orange-700"> {dailyPace.toLocaleString()}件</span> のペースが必要です）
@@ -363,7 +363,7 @@ export default async function GoalsPage({
         {/* 累計コール件数：目標 vs 実績のグラフ */}
         <section className={`${cardCls} p-5`}>
           <h2 className={sectionTitleCls}>コール件数の推移（月内累計）</h2>
-          <div className="mt-3 flex items-center gap-4 text-xs">
+          <div className="mt-3 flex items-center gap-4 text-[13.7px]">
             <span className="flex items-center gap-1.5 text-slate-500">
               <span className="inline-block h-2.5 w-2.5 rounded-full bg-slate-300" />目標（累計）
             </span>
@@ -382,7 +382,7 @@ export default async function GoalsPage({
         <section className={`${cardCls} p-5`}>
           <h2 className={sectionTitleCls}>週次まとめ（コール件数）</h2>
           {!scope.editableProfile && (
-            <div className="mt-2 rounded-xl border border-orange-100 bg-orange-50/60 p-3 text-xs text-slate-600">
+            <div className="mt-2 rounded-xl border border-orange-100 bg-orange-50/60 p-3 text-[13.7px] text-slate-600">
               <p>
                 目標は、メンバーごとの「日別コール件数目標」を入力すると、ここに週ごとの合計として表示されます。
                 {scope.kind === "self"
@@ -403,7 +403,7 @@ export default async function GoalsPage({
           <div className="mt-3 overflow-x-auto">
             <table className="w-full min-w-[360px] text-sm">
               <thead>
-                <tr className="border-b border-orange-100 bg-orange-50/60 text-left text-xs font-semibold text-slate-500">
+                <tr className="border-b border-orange-100 bg-orange-50/60 text-left text-[13.7px] font-semibold text-slate-500">
                   <th className="px-3 py-2">週</th>
                   <th className="px-3 py-2 text-right">目標</th>
                   <th className="px-3 py-2 text-right">実績</th>
@@ -460,7 +460,7 @@ export default async function GoalsPage({
 
             <section className={`${cardCls} p-5`}>
               <h2 className={sectionTitleCls}>{nameFor(scope.editableProfile)} さんの日別コール件数目標</h2>
-              <p className="mt-1 text-xs text-slate-500">
+              <p className="mt-1 text-[13.7px] text-slate-500">
                 グレーの日は稼働日カレンダー上「休み」に設定されています（土日・祝日を含む）。
               </p>
               <DailyCallGoalsForm

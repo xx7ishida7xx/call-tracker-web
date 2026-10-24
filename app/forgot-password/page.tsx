@@ -81,7 +81,7 @@ export default function ForgotPasswordPage() {
             <button type="submit" disabled={pending || !email} className={`${btnPrimaryCls} mt-2 w-full`}>
               {pending ? "送信中…" : "再設定メールを送る"}
             </button>
-            <Link href="/login" className="text-center text-xs font-medium text-slate-500 hover:text-orange-600 hover:underline">
+            <Link href="/login" className="text-center text-[13.7px] font-medium text-slate-500 hover:text-orange-600 hover:underline">
               ログイン画面に戻る
             </Link>
           </form>

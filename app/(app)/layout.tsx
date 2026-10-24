@@ -30,6 +30,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   const navItems: NavItem[] = [
     { href: "/leads", label: "リード一覧", icon: "list" },
     { href: "/goals", label: "目標・稼働日", icon: "target" },
+    { href: "/calls", label: "コール履歴", icon: "list" },
     { href: "/apo", label: "アポ表", icon: "doc" },
     ...(showMessages
       ? [{ href: "/messages", label: "自分宛のメッセージ", icon: "mail" as const, badge: unreadMessages }]
@@ -66,8 +67,8 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         <Sidebar items={navItems} />
 
         <div className="mt-auto flex flex-col gap-3 border-t border-slate-800 px-5 py-4">
-          <div className="flex items-center gap-2 text-xs">
-            <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-slate-700 text-[11px] font-semibold text-white">
+          <div className="flex items-center gap-2 text-[13.7px]">
+            <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-slate-700 text-xs font-semibold text-white">
               {nameFor(me).slice(0, 1)}
             </span>
             <div className="flex min-w-0 flex-col leading-tight">
@@ -79,7 +80,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           <form action={signOut}>
             <button
               type="submit"
-              className="w-full rounded-lg border border-slate-700 px-3 py-1.5 text-xs font-semibold text-slate-200 transition hover:border-orange-400 hover:text-orange-300"
+              className="w-full rounded-lg border border-slate-700 px-3 py-1.5 text-[13.7px] font-semibold text-slate-200 transition hover:border-orange-400 hover:text-orange-300"
             >
               ログアウト
             </button>
@@ -97,13 +98,13 @@ export default async function AppLayout({ children }: { children: React.ReactNod
             className="h-8 w-8 shrink-0 rounded-lg bg-orange-500 object-cover shadow-sm"
           />
           <span className="shrink truncate text-sm font-bold tracking-tight text-white">SamuraiONコールトラッカー</span>
-          <span className="ml-1 min-w-0 flex-1 truncate text-[11px] text-slate-400">
+          <span className="ml-1 min-w-0 flex-1 truncate text-xs text-slate-400">
             {nameFor(me)}・{roleLabel}
           </span>
           <form action={signOut} className="ml-auto shrink-0">
             <button
               type="submit"
-              className="rounded-lg border border-slate-700 px-2.5 py-1 text-[11px] font-semibold text-slate-200"
+              className="rounded-lg border border-slate-700 px-2.5 py-1 text-xs font-semibold text-slate-200"
             >
               ログアウト
             </button>

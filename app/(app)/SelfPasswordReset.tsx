@@ -24,7 +24,7 @@ export default function SelfPasswordReset({ email, compact = false }: { email: s
 
   if (sent) {
     return (
-      <p className={compact ? "text-[11px] text-emerald-400" : "text-xs font-medium text-emerald-600"}>
+      <p className={compact ? "text-xs text-emerald-400" : "text-[13.7px] font-medium text-emerald-600"}>
         再設定メールを送信しました
       </p>
     );
@@ -38,13 +38,13 @@ export default function SelfPasswordReset({ email, compact = false }: { email: s
         disabled={isPending}
         className={
           compact
-            ? "rounded-lg border border-slate-700 px-2.5 py-1 text-[11px] font-semibold text-slate-200"
-            : "w-full rounded-lg border border-slate-700 px-3 py-1.5 text-xs font-semibold text-slate-200 transition hover:border-orange-400 hover:text-orange-300"
+            ? "rounded-lg border border-slate-700 px-2.5 py-1 text-xs font-semibold text-slate-200"
+            : "w-full rounded-lg border border-slate-700 px-3 py-1.5 text-[13.7px] font-semibold text-slate-200 transition hover:border-orange-400 hover:text-orange-300"
         }
       >
         {isPending ? "送信中…" : "パスワードを再設定"}
       </button>
-      {error && <p className="text-[11px] text-rose-400">{error}</p>}
+      {error && <p className="text-xs text-rose-400">{error}</p>}
     </div>
   );
 }

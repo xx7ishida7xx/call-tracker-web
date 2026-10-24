@@ -410,7 +410,7 @@ export default function LeadDetailClient({
                     <button
                       type="button"
                       onClick={() => removeExtraUrl(i)}
-                      className="shrink-0 px-1 text-xs font-medium text-slate-400 hover:text-rose-600"
+                      className="shrink-0 px-1 text-[13.7px] font-medium text-slate-400 hover:text-rose-600"
                     >
                       削除
                     </button>
@@ -419,7 +419,7 @@ export default function LeadDetailClient({
                 <button
                   type="button"
                   onClick={addExtraUrl}
-                  className="self-start text-xs font-semibold text-orange-600 hover:underline"
+                  className="self-start text-[13.7px] font-semibold text-orange-600 hover:underline"
                 >
                   ＋ URLを追加（ホームページが複数ある場合）
                 </button>
@@ -500,7 +500,7 @@ export default function LeadDetailClient({
                 ))}
               </select>
               {form.hp_status && (HP_STATUS_OPTIONS as readonly string[]).includes(form.hp_status) && (
-                <p className="mt-1 text-xs text-slate-500">
+                <p className="mt-1 text-[13.7px] text-slate-500">
                   {HP_STATUS_HELP[form.hp_status as (typeof HP_STATUS_OPTIONS)[number]]}
                 </p>
               )}
@@ -579,7 +579,7 @@ export default function LeadDetailClient({
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 {CALL_RESULT_GROUP_ORDER.map((group) => (
                   <div key={group} className="rounded-lg border border-slate-200 p-3">
-                    <p className="mb-2 text-xs font-bold text-slate-500">{group}</p>
+                    <p className="mb-2 text-[13.7px] font-bold text-slate-500">{group}</p>
                     <div className="flex flex-col gap-1.5">
                       {CALL_RESULT_GROUPS[group].map((label) => (
                         <label
@@ -625,7 +625,7 @@ export default function LeadDetailClient({
                 ))}
               </div>
               {callForm.resultGroup && callForm.result.trim() && (
-                <p className="mt-2 text-xs text-slate-400">
+                <p className="mt-2 text-[13.7px] text-slate-400">
                   {outcomeSummary(getCallOutcome(callForm.resultGroup, callForm.result))}
                 </p>
               )}
@@ -672,7 +672,7 @@ export default function LeadDetailClient({
                 </label>
               </div>
             </div>
-            <p className="-mt-2 text-xs text-slate-400">
+            <p className="-mt-2 text-[13.7px] text-slate-400">
               ※集客意欲はリード自体の情報のため、変更した場合は右の「リード情報を保存する」ボタンで保存してください（通話の登録では保存されません）。
             </p>
 
@@ -748,7 +748,7 @@ export default function LeadDetailClient({
         <div className="overflow-x-auto">
           <table className="w-full min-w-[720px] text-sm">
             <thead>
-              <tr className="border-b border-orange-100 bg-orange-50/60 text-left text-xs font-semibold text-slate-500">
+              <tr className="border-b border-orange-100 bg-orange-50/60 text-left text-[13.7px] font-semibold text-slate-500">
                 <th className="px-3 py-2">商材</th>
                 <th className="px-3 py-2">契約会社名</th>
                 <th className="px-3 py-2">有</th>
@@ -820,7 +820,7 @@ export default function LeadDetailClient({
                     <button
                       type="button"
                       onClick={() => removeContractRow(i)}
-                      className="text-xs font-medium text-slate-400 hover:text-rose-600"
+                      className="text-[13.7px] font-medium text-slate-400 hover:text-rose-600"
                     >
                       削除
                     </button>
@@ -837,7 +837,7 @@ export default function LeadDetailClient({
             </tbody>
           </table>
         </div>
-        <p className="mt-3 text-xs text-slate-400">
+        <p className="mt-3 text-[13.7px] text-slate-400">
           入力後は上の「リード情報を保存する」ボタンを押すと、リード情報とあわせて契約状況も保存されます。
         </p>
       </section>
@@ -879,7 +879,7 @@ export default function LeadDetailClient({
             このリードのアポ表を作る
           </Link>
         </div>
-        <p className="mb-4 text-xs text-slate-400">
+        <p className="mb-4 text-[13.7px] text-slate-400">
           診断レポートやアポ表のファイルを、点線の枠にドラッグ＆ドロップするか、「ファイルを選んで…アップロード」ボタンで取り込めます（スマホはボタンをお使いください）。過去分もここであわせて確認できます。
         </p>
         <div className="grid gap-6 sm:grid-cols-2">
@@ -1007,7 +1007,7 @@ function AttachmentGroup({
           <span className="text-sm font-semibold">
             {isPending ? "アップロード中…" : dragging ? "ここで離すと取り込みます" : `${category}のファイルをここにドラッグ＆ドロップ`}
           </span>
-          <span className="text-xs text-slate-400">
+          <span className="text-[13.7px] text-slate-400">
             {progress ?? "（複数まとめて可・1ファイル25MBまで）"}
           </span>
         </div>
@@ -1033,7 +1033,7 @@ function AttachmentGroup({
       </div>
 
       {items.length === 0 ? (
-        <p className="text-xs text-slate-400">まだファイルがありません</p>
+        <p className="text-[13.7px] text-slate-400">まだファイルがありません</p>
       ) : (
         <ul className="flex flex-col divide-y divide-slate-100">
           {items.map((a) => (
@@ -1053,17 +1053,17 @@ function AttachmentGroup({
                     {a.file_name}（リンク期限切れ）
                   </span>
                 )}
-                <p className="mt-0.5 text-xs text-slate-400">
+                <p className="mt-0.5 text-[13.7px] text-slate-400">
                   {formatDateTime(a.created_at)}・{a.uploaded_by_name}
                 </p>
-                {a.note && <p className="mt-0.5 text-xs text-slate-500">{a.note}</p>}
+                {a.note && <p className="mt-0.5 text-[13.7px] text-slate-500">{a.note}</p>}
               </div>
               {(isAdmin || a.uploaded_by === meId) && (
                 <button
                   type="button"
                   onClick={() => handleDelete(a.id)}
                   disabled={isPending}
-                  className="shrink-0 text-xs font-medium text-slate-400 hover:text-rose-600"
+                  className="shrink-0 text-[13.7px] font-medium text-slate-400 hover:text-rose-600"
                 >
                   削除
                 </button>
@@ -1187,7 +1187,7 @@ function CallHistoryItem({
   if (!editing) {
     return (
       <li className="py-3">
-        <div className="flex flex-wrap items-center gap-2 text-xs text-slate-500">
+        <div className="flex flex-wrap items-center gap-2 text-[13.7px] text-slate-500">
           <span className="font-medium text-slate-700">{formatDateTime(call.called_at)}</span>
           <span>・{call.caller ? nameFor(call.caller) : "不明"}</span>
           {call.connected && (
@@ -1219,7 +1219,7 @@ function CallHistoryItem({
         {call.result && <p className="mt-1 text-sm text-slate-800">{call.result}</p>}
         {call.notes && <p className="mt-1 whitespace-pre-wrap text-sm text-slate-600">{call.notes}</p>}
         {call.recall_at && (
-          <p className="mt-1 text-xs text-slate-500">
+          <p className="mt-1 text-[13.7px] text-slate-500">
             次回架電予定: {formatDateTime(call.recall_at)}
             {call.recall_target ? `（${call.recall_target}）` : ""}
           </p>
@@ -1232,7 +1232,7 @@ function CallHistoryItem({
   return (
     <li className="py-3">
       <div className="flex flex-col gap-3 rounded-lg border border-orange-200 bg-orange-50/40 p-3">
-        <p className="text-xs font-semibold text-slate-500">
+        <p className="text-[13.7px] font-semibold text-slate-500">
           {formatDateTime(call.called_at)}・{call.caller ? nameFor(call.caller) : "不明"} の記録を編集
         </p>
         <div>
@@ -1240,7 +1240,7 @@ function CallHistoryItem({
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             {CALL_RESULT_GROUP_ORDER.map((group) => (
               <div key={group} className="rounded-lg border border-slate-200 bg-white p-3">
-                <p className="mb-2 text-xs font-bold text-slate-500">{group}</p>
+                <p className="mb-2 text-[13.7px] font-bold text-slate-500">{group}</p>
                 <div className="flex flex-col gap-1.5">
                   {CALL_RESULT_GROUPS[group].map((label) => (
                     <label
@@ -1350,7 +1350,7 @@ function CallHistoryItem({
             キャンセル
           </button>
         </div>
-        <p className="text-xs text-slate-400">
+        <p className="text-[13.7px] text-slate-400">
           ※編集してもリードの現在のステータスは自動では変わりません。ステータスを変える場合は上のリード情報から変更してください。
         </p>
       </div>

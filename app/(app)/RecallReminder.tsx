@@ -102,7 +102,7 @@ export default function RecallReminder({ meId }: { meId: string }) {
           className="flex flex-col gap-1.5 rounded-xl border border-orange-200 bg-white p-3 shadow-lg shadow-orange-100/50"
         >
           <div className="flex items-start justify-between gap-2">
-            <p className="text-xs font-bold text-orange-600">次回架電のお知らせ</p>
+            <p className="text-[13.7px] font-bold text-orange-600">次回架電のお知らせ</p>
             <button
               type="button"
               onClick={() => dismiss(lead.id, lead.recall_at)}
@@ -113,13 +113,13 @@ export default function RecallReminder({ meId }: { meId: string }) {
             </button>
           </div>
           <p className="text-sm font-semibold text-slate-900">{lead.company || "（会社名未登録）"}</p>
-          <p className="text-xs text-slate-500">
+          <p className="text-[13.7px] text-slate-500">
             予定: {formatDateTime(lead.recall_at)}
             {lead.recall_target ? `（${lead.recall_target}）` : ""}
           </p>
           <Link
             href={`/leads/${lead.id}`}
-            className="mt-1 self-start rounded-lg bg-orange-600 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-orange-700"
+            className="mt-1 self-start rounded-lg bg-orange-600 px-3 py-1.5 text-[13.7px] font-semibold text-white transition hover:bg-orange-700"
           >
             リードを開く
           </Link>

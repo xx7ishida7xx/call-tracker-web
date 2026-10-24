@@ -88,12 +88,12 @@ export default function LeadComments({
   return (
     <section className={`${cardCls} p-5`}>
       <h2 className={`mb-1 ${sectionTitleCls}`}>コメント</h2>
-      <p className="mb-4 text-xs text-slate-400">
+      <p className="mb-4 text-[13.7px] text-slate-400">
         前確の依頼や引き継ぎ、前確した時の状況などを残せます。このリードを見られる人が読めます。宛先を選ぶと、その人の画面に未読の目印が出ます。
       </p>
 
       {leadStatus === "前確待ち" && (
-        <p className="mb-3 rounded-lg border border-indigo-100 bg-indigo-50 px-3 py-2 text-xs text-indigo-700">
+        <p className="mb-3 rounded-lg border border-indigo-100 bg-indigo-50 px-3 py-2 text-[13.7px] text-indigo-700">
           このリードは「前確待ち」です。前確する人を宛先にして、「誰に・いつ連絡してほしいか」をコメントで残しておきましょう。
         </p>
       )}
@@ -117,7 +117,7 @@ export default function LeadComments({
                       : "border-slate-200 bg-white"
                 }`}
               >
-                <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-slate-500">
+                <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[13.7px] text-slate-500">
                   <span className="font-semibold text-slate-700">{c.author_name}</span>
                   {c.to_name && (
                     <span className={`rounded-full px-2 py-0.5 font-semibold ${toMe ? "bg-orange-100 text-orange-700" : "bg-indigo-100 text-indigo-700"}`}>
@@ -132,7 +132,7 @@ export default function LeadComments({
                       type="button"
                       onClick={() => handleDelete(c.id)}
                       disabled={isPending}
-                      className="ml-auto text-xs font-medium text-slate-400 hover:text-rose-600"
+                      className="ml-auto text-[13.7px] font-medium text-slate-400 hover:text-rose-600"
                     >
                       削除
                     </button>
@@ -147,7 +147,7 @@ export default function LeadComments({
 
       <form onSubmit={handleSend} className="flex flex-col gap-2 rounded-xl border border-slate-200 bg-slate-50/60 p-3">
         <div className="flex flex-wrap items-center gap-2">
-          <label className="text-xs font-semibold text-slate-600" htmlFor={`comment-to-${leadId}`}>
+          <label className="text-[13.7px] font-semibold text-slate-600" htmlFor={`comment-to-${leadId}`}>
             宛先
           </label>
           <select id={`comment-to-${leadId}`} value={to} onChange={(e) => setTo(e.target.value)} className={`${inputCls} max-w-56`}>

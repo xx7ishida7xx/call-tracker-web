@@ -50,7 +50,7 @@ export default async function MessagesPage() {
             r.read_at ? "border-slate-200 bg-white" : "border-orange-300 bg-orange-50"
           }`}
         >
-          <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-slate-500">
+          <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[13.7px] text-slate-500">
             {!r.read_at && <span className="rounded-full bg-orange-500 px-2 py-0.5 font-semibold text-white">未読</span>}
             <span className="font-semibold text-slate-800">{r.lead?.company || "（会社名未登録）"}</span>
             <span>・{(r.author_id && authorNames.get(r.author_id)) || "不明なメンバー"}さんから</span>

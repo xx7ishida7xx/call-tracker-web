@@ -40,7 +40,7 @@ export default function PhpInfo({
     <div className="flex flex-col gap-1 text-sm">
       <div className="flex flex-wrap items-center gap-2">
         {status ? (
-          <span className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${PHP_STATUS_BADGE_CLS[status] ?? "bg-slate-100 text-slate-500"}`}>
+          <span className={`rounded-full px-2.5 py-0.5 text-[13.7px] font-medium ${PHP_STATUS_BADGE_CLS[status] ?? "bg-slate-100 text-slate-500"}`}>
             {version ? `PHP ${version} ` : ""}
             {status}
           </span>
@@ -50,11 +50,11 @@ export default function PhpInfo({
         <button type="button" className={btnSecondarySmCls} disabled={pending || !hasUrl} onClick={run}>
           {pending ? "判定中…" : "いますぐ判定"}
         </button>
-        {checkedAt && <span className="text-xs text-slate-400">確認日 {formatDateTime(checkedAt)}</span>}
+        {checkedAt && <span className="text-[13.7px] text-slate-400">確認日 {formatDateTime(checkedAt)}</span>}
       </div>
-      {note && <div className="text-xs text-slate-500">{note}</div>}
-      <div className="text-xs text-slate-400">※外部から確認できた範囲の判定です。最終確認はサーバー管理画面で行ってください。</div>
-      {err && <div className="text-xs text-red-600">{err}</div>}
+      {note && <div className="text-[13.7px] text-slate-500">{note}</div>}
+      <div className="text-[13.7px] text-slate-400">※外部から確認できた範囲の判定です。最終確認はサーバー管理画面で行ってください。</div>
+      {err && <div className="text-[13.7px] text-red-600">{err}</div>}
     </div>
   );
 }

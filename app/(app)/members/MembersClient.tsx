@@ -57,14 +57,14 @@ export default function MembersClient({
           <h2 className="text-sm font-bold text-red-700">
             ⚠ アクセス集中の検知（直近14日間）
           </h2>
-          <p className="mt-1 text-xs text-red-600">
+          <p className="mt-1 text-[13.7px] text-red-600">
             ゲストアカウントが、短時間に通常の利用では考えにくい回数アクセスしたため、一時的に表示を制限した記録です。
             自動ツールなどでの大量アクセスの可能性があります。心当たりがない場合は、該当アカウントにご確認ください。
           </p>
           <div className="mt-3 overflow-x-auto">
             <table className="w-full min-w-[640px] text-sm">
               <thead>
-                <tr className="border-b border-red-100 text-left text-xs font-semibold text-red-700">
+                <tr className="border-b border-red-100 text-left text-[13.7px] font-semibold text-red-700">
                   <th className="py-1.5 pr-4">アカウント</th>
                   <th className="py-1.5 pr-4">ページ</th>
                   <th className="py-1.5 pr-4">検知回数</th>
@@ -93,7 +93,7 @@ export default function MembersClient({
       <div className={`overflow-x-auto ${cardCls}`}>
         <table className="w-full min-w-[1080px] text-sm">
           <thead>
-            <tr className="border-b border-orange-100 bg-orange-50/60 text-left text-xs font-semibold text-slate-500">
+            <tr className="border-b border-orange-100 bg-orange-50/60 text-left text-[13.7px] font-semibold text-slate-500">
               <th className="px-4 py-2.5">メールアドレス</th>
               <th className="px-4 py-2.5">登録名</th>
               <th className="px-4 py-2.5">表示名</th>
@@ -167,13 +167,13 @@ function CompaniesManager({
     <div className={`flex flex-col gap-3 ${cardCls} p-5`}>
       <div>
         <h2 className={sectionTitleCls}>会社の管理</h2>
-        <p className="mt-1 text-xs text-slate-500">
+        <p className="mt-1 text-[13.7px] text-slate-500">
           ミライアゴーゴー自身や、各ゲスト会社（販売店など）をここで登録しておくと、下の「新しいメンバーを招待」やメンバーごとの「所属会社」、CSVインポートの担当者振り分けで選べるようになります。ゲスト会社が実際に稼働する前に、先に登録しておくことができます。
         </p>
-        <p className="mt-1 text-xs text-slate-500">
+        <p className="mt-1 text-[13.7px] text-slate-500">
           「表示名称」は、正式名称が長い場合などに使う略称です（例：正式名称「株式会社ミライアゴーゴー」→表示名称「MAG」）。未入力でも構いません。CSVインポートの「担当者」欄に表示名称が入っている場合も、正式名称と同じように自動で担当会社を認識します。
         </p>
-        <p className="mt-1 text-xs text-slate-500">
+        <p className="mt-1 text-[13.7px] text-slate-500">
           ゲスト会社（guest_admin / guest_member）は、既定では「自社の誰かに割り当てられたリード」だけを閲覧・架電できます（会社に所属する全員で共有、個人単位の割り当てではありません）。「全リード閲覧」をオンにすると、他社に割り振った分も含めて全リードを検索・閲覧できるようになります。いつでも後から切り替え可能です。
         </p>
       </div>
@@ -183,7 +183,7 @@ function CompaniesManager({
         ))}
       </div>
       <div className="flex flex-wrap items-end gap-3 border-t border-slate-100 pt-3">
-        <label className="flex flex-col gap-1 text-xs font-semibold text-slate-500">
+        <label className="flex flex-col gap-1 text-[13.7px] font-semibold text-slate-500">
           新しい会社名・正式名称（ゲスト会社の販売店名など）
           <input
             className={`w-64 ${inputCls}`}
@@ -192,7 +192,7 @@ function CompaniesManager({
             placeholder="例：株式会社〇〇商事"
           />
         </label>
-        <label className="flex flex-col gap-1 text-xs font-semibold text-slate-500">
+        <label className="flex flex-col gap-1 text-[13.7px] font-semibold text-slate-500">
           表示名称（任意・略称）
           <input
             className={`w-40 ${inputCls}`}
@@ -201,7 +201,7 @@ function CompaniesManager({
             placeholder="例：〇〇商事"
           />
         </label>
-        <label className="flex items-center gap-1.5 pb-2 text-xs font-semibold text-slate-600">
+        <label className="flex items-center gap-1.5 pb-2 text-[13.7px] font-semibold text-slate-600">
           <input
             type="checkbox"
             checked={newCanViewAllLeads}
@@ -293,9 +293,9 @@ function CompanyRow({
         title="表示名称"
       />
       {company.is_home && (
-        <span className="rounded-full bg-slate-200 px-2 py-0.5 text-[10px] font-semibold text-slate-600">自社</span>
+        <span className="rounded-full bg-slate-200 px-2 py-0.5 text-xs font-semibold text-slate-600">自社</span>
       )}
-      <label className="flex items-center gap-1.5 text-xs font-semibold text-slate-600">
+      <label className="flex items-center gap-1.5 text-[13.7px] font-semibold text-slate-600">
         <input
           type="checkbox"
           checked={canViewAllLeads}
@@ -316,8 +316,8 @@ function CompanyRow({
           削除
         </button>
       )}
-      {saved && <span className="text-xs font-medium text-emerald-600">保存しました</span>}
-      {error && <span className="text-xs text-red-600">{error}</span>}
+      {saved && <span className="text-[13.7px] font-medium text-emerald-600">保存しました</span>}
+      {error && <span className="text-[13.7px] text-red-600">{error}</span>}
     </div>
   );
 }
@@ -434,7 +434,7 @@ function MemberRow({
         <span className="inline-flex flex-wrap items-center gap-1.5">
           <span className="whitespace-nowrap">{member.email}</span>
           {member.is_owner && (
-            <span className="whitespace-nowrap rounded-full bg-orange-600 px-2 py-0.5 text-[10px] font-semibold text-white">
+            <span className="whitespace-nowrap rounded-full bg-orange-600 px-2 py-0.5 text-xs font-semibold text-white">
               オーナー
             </span>
           )}
@@ -444,7 +444,7 @@ function MemberRow({
       <td className="px-4 py-2.5">
         {editable ? (
           <input
-            className={`w-36 ${inputCls}`}
+            className={`w-44 ${inputCls}`}
             value={displayName}
             onChange={(e) => setDisplayName(e.target.value)}
             placeholder={member.name}
@@ -468,7 +468,7 @@ function MemberRow({
       </td>
       <td className="px-4 py-2.5">
         {canChangeRole ? (
-          <select className={`w-44 ${inputCls}`} value={companyId} onChange={(e) => setCompanyId(e.target.value)}>
+          <select className={`w-52 ${inputCls}`} value={companyId} onChange={(e) => setCompanyId(e.target.value)}>
             <option value="">未設定</option>
             {companies.map((c) => (
               <option key={c.id} value={c.id}>
@@ -496,7 +496,7 @@ function MemberRow({
               ))}
             </select>
             {canManageMembers(me) && teamLeadOptions.filter((t) => t.id !== teamLeadId).length > 0 && (
-              <div className="text-xs">
+              <div className="text-[13.7px]">
                 <button
                   type="button"
                   onClick={() => setShowExtra((v) => !v)}
@@ -514,7 +514,7 @@ function MemberRow({
                     {teamLeadOptions
                       .filter((t) => t.id !== teamLeadId)
                       .map((t) => (
-                        <label key={t.id} className="flex items-center gap-1.5 text-xs text-slate-700">
+                        <label key={t.id} className="flex items-center gap-1.5 text-[13.7px] text-slate-700">
                           <input
                             type="checkbox"
                             checked={extraLeaderIds.includes(t.id)}
@@ -534,7 +534,7 @@ function MemberRow({
           <div>
             {roster.find((r) => r.id === member.team_lead_id)?.name ?? "なし"}
             {(member.extra_team_lead_ids ?? []).length > 0 && (
-              <div className="text-xs text-slate-500">
+              <div className="text-[13.7px] text-slate-500">
                 追加：{(member.extra_team_lead_ids ?? []).map((id) => nameFor(roster.find((r) => r.id === id))).join("、")}
               </div>
             )}
@@ -545,7 +545,7 @@ function MemberRow({
         {lastSignIn ? (
           formatDateTime(lastSignIn)
         ) : (
-          <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-800">
+          <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[13.7px] font-semibold text-amber-800">
             未ログイン
           </span>
         )}
@@ -554,8 +554,8 @@ function MemberRow({
         <div className="flex flex-col items-end gap-1.5">
           {editable && (
             <div className="flex items-center justify-end gap-2">
-              {error && <span className="text-xs text-red-600">{error}</span>}
-              {saved && <span className="text-xs font-medium text-emerald-600">保存しました</span>}
+              {error && <span className="text-[13.7px] text-red-600">{error}</span>}
+              {saved && <span className="text-[13.7px] font-medium text-emerald-600">保存しました</span>}
               <button onClick={save} disabled={isPending} className={btnSecondarySmCls}>
                 保存
               </button>
@@ -563,8 +563,8 @@ function MemberRow({
           )}
           {canManageThisMember && (
             <div className="flex items-center justify-end gap-2">
-              {rowActionError && <span className="text-xs text-red-600">{rowActionError}</span>}
-              {resetSent && <span className="text-xs font-medium text-emerald-600">送信しました</span>}
+              {rowActionError && <span className="text-[13.7px] text-red-600">{rowActionError}</span>}
+              {resetSent && <span className="text-[13.7px] font-medium text-emerald-600">送信しました</span>}
               <button onClick={sendReset} disabled={rowActionPending} className={btnSecondarySmCls}>
                 パスワード再設定メールを送る
               </button>
@@ -619,12 +619,12 @@ function InviteMemberForm({ canGrantAdmin, companies }: { canGrantAdmin: boolean
     <div className={`flex flex-col gap-3 ${cardCls} p-5`}>
       <div>
         <h2 className={sectionTitleCls}>新しいメンバーを招待</h2>
-        <p className="mt-1 text-xs text-slate-500">
+        <p className="mt-1 text-[13.7px] text-slate-500">
           メールアドレスを入力すると、Supabaseから招待メールが届きます。相手がリンクからパスワードを設定すると、そのままログインできるようになります。ゲスト会社がまだ稼働していなくても、先に招待してリードを割り振っておくことができます。
         </p>
       </div>
       <div className="flex flex-wrap items-end gap-3">
-        <label className="flex flex-col gap-1 text-xs font-semibold text-slate-500">
+        <label className="flex flex-col gap-1 text-[13.7px] font-semibold text-slate-500">
           メールアドレス
           <input
             type="email"
@@ -634,7 +634,7 @@ function InviteMemberForm({ canGrantAdmin, companies }: { canGrantAdmin: boolean
             className={`w-64 ${inputCls}`}
           />
         </label>
-        <label className="flex flex-col gap-1 text-xs font-semibold text-slate-500">
+        <label className="flex flex-col gap-1 text-[13.7px] font-semibold text-slate-500">
           最初のロール
           <select value={role} onChange={(e) => setRole(e.target.value as Role)} className={inputCls}>
             {inviteRoles.map((r) => (
@@ -644,7 +644,7 @@ function InviteMemberForm({ canGrantAdmin, companies }: { canGrantAdmin: boolean
             ))}
           </select>
         </label>
-        <label className="flex flex-col gap-1 text-xs font-semibold text-slate-500">
+        <label className="flex flex-col gap-1 text-[13.7px] font-semibold text-slate-500">
           所属会社
           <select value={companyId} onChange={(e) => setCompanyId(e.target.value)} className={`w-56 ${inputCls}`}>
             <option value="">未設定</option>

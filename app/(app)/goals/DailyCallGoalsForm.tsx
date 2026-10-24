@@ -79,12 +79,12 @@ export default function DailyCallGoalsForm({
         <button type="button" onClick={clearAll} className={btnSecondarySmCls}>
           すべて0にする
         </button>
-        <p className="basis-full text-[11px] text-slate-500">
+        <p className="basis-full text-xs text-slate-500">
           ボタンを押しただけでは保存されません。内容を確認して、下の「日別目標を保存」を押してください。
         </p>
       </div>
 
-      <div className="grid grid-cols-7 gap-1.5 text-center text-[11px] font-semibold text-slate-400">
+      <div className="grid grid-cols-7 gap-1.5 text-center text-xs font-semibold text-slate-400">
         {WEEKDAY_LABELS.map((label) => (
           <div key={label}>{label}</div>
         ))}
@@ -102,21 +102,21 @@ export default function DailyCallGoalsForm({
                 d.isWorking ? "border-slate-200 bg-white" : "border-slate-100 bg-slate-50"
               } ${d.date === today ? "ring-2 ring-orange-300" : ""}`}
             >
-              <span className={`text-[11px] ${d.isWorking ? "text-slate-500" : "text-slate-300"}`}>{day}</span>
+              <span className={`text-xs ${d.isWorking ? "text-slate-500" : "text-slate-300"}`}>{day}</span>
               <input
                 type="number"
                 min={0}
                 name={`call_target_${d.date}`}
                 value={values[d.date] ?? "0"}
                 onChange={(e) => setOne(d.date, e.target.value)}
-                className="w-full rounded border border-slate-200 px-1 py-1 text-center text-xs tabular-nums focus:border-orange-400 focus:outline-none"
+                className="w-full rounded border border-slate-200 px-1 py-1 text-center text-[13.7px] tabular-nums focus:border-orange-400 focus:outline-none"
               />
             </div>
           );
         })}
       </div>
 
-      <div className="flex flex-wrap items-center gap-2 text-xs text-slate-600">
+      <div className="flex flex-wrap items-center gap-2 text-[13.7px] text-slate-600">
         {weekList.map(([w, total]) => (
           <span key={w} className="rounded-full bg-slate-100 px-2.5 py-1">
             第{w}週 <span className="font-bold tabular-nums text-slate-900">{total.toLocaleString()}</span>件

@@ -193,13 +193,13 @@ export default function ApoForm({
         <Link href={`/leads/${leadId}`} className={btnSecondaryCls}>
           リードを開く
         </Link>
-        {dirty && <span className="text-xs font-semibold text-orange-700">未保存の変更があります</span>}
+        {dirty && <span className="text-[13.7px] font-semibold text-orange-700">未保存の変更があります</span>}
         {canDelete && (
           <button
             type="button"
             onClick={handleDelete}
             disabled={isPending}
-            className="ml-auto rounded-lg border border-red-200 bg-white px-3 py-2 text-xs font-semibold text-red-600 hover:bg-red-50 disabled:opacity-50"
+            className="ml-auto rounded-lg border border-red-200 bg-white px-3 py-2 text-[13.7px] font-semibold text-red-600 hover:bg-red-50 disabled:opacity-50"
           >
             削除
           </button>

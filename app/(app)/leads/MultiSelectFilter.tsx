@@ -43,13 +43,13 @@ export default function MultiSelectFilter({
   }
 
   return (
-    <div ref={containerRef} className="flex flex-col gap-1 text-xs font-semibold text-slate-500">
+    <div ref={containerRef} className="flex flex-col gap-1 text-[13.7px] font-semibold text-slate-500">
       {label}
       <div className="relative">
         <button
           type="button"
           onClick={() => setOpen((o) => !o)}
-          className={`${inputCls} flex w-40 cursor-pointer select-none items-center justify-between gap-2`}
+          className={`${inputCls} flex w-48 cursor-pointer select-none items-center justify-between gap-2`}
         >
           <span className="truncate">
             {checkedValues.length === 0 ? "すべて" : `${checkedValues.length}件選択中`}
