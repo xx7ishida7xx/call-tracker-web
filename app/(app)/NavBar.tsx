@@ -90,7 +90,7 @@ export default function Sidebar({ items }: { items: NavItem[] }) {
         return (
           <div key={item.href}>
             {showGroupLabel && (
-              <p className="mb-1 mt-4 px-3 text-xs font-bold uppercase tracking-wider text-slate-500 first:mt-2">
+              <p className="mb-1 mt-4 px-3 text-[13px] font-bold uppercase tracking-wider text-slate-500 first:mt-2">
                 {item.group}
               </p>
             )}
@@ -98,11 +98,11 @@ export default function Sidebar({ items }: { items: NavItem[] }) {
               href={item.href}
               className={
                 active
-                  ? "flex items-center gap-3 rounded-lg bg-orange-500/15 px-3 py-2.5 text-sm font-semibold text-orange-300"
-                  : "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-slate-300 transition hover:bg-slate-800 hover:text-white"
+                  ? "flex items-center gap-3 rounded-lg bg-orange-500/15 px-3 py-3 text-[15px] font-semibold text-orange-300"
+                  : "flex items-center gap-3 rounded-lg px-3 py-3 text-[15px] font-medium text-slate-300 transition hover:bg-slate-800 hover:text-white"
               }
             >
-              <Icon name={item.icon} className={`h-[18px] w-[18px] shrink-0 ${active ? "text-orange-400" : "text-slate-400"}`} />
+              <Icon name={item.icon} className={`h-5 w-5 shrink-0 ${active ? "text-orange-400" : "text-slate-400"}`} />
               {item.label}
               <Badge count={item.badge} className="ml-auto" />
             </Link>

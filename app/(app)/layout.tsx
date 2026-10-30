@@ -50,7 +50,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   return (
     <div className="min-h-screen bg-orange-50 sm:flex">
       {/* デスクトップ：左側の縦型ナビゲーション（濃色） */}
-      <aside className="hidden sm:sticky sm:top-0 sm:flex sm:h-screen sm:w-60 sm:shrink-0 sm:flex-col sm:bg-slate-900">
+      <aside className="hidden sm:sticky sm:top-0 sm:flex sm:h-screen sm:w-64 sm:shrink-0 sm:flex-col sm:bg-slate-900">
         <div className="flex min-w-0 items-center gap-2 px-5 py-5">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
@@ -59,8 +59,8 @@ export default async function AppLayout({ children }: { children: React.ReactNod
             className="h-9 w-9 shrink-0 rounded-lg bg-orange-500 object-cover shadow-sm"
           />
           <span className="flex min-w-0 flex-col leading-tight text-white">
-            <span className="truncate text-sm font-bold tracking-tight">SamuraiON</span>
-            <span className="truncate text-sm font-bold tracking-tight">コールトラッカー</span>
+            <span className="truncate text-base font-bold tracking-tight">SamuraiON</span>
+            <span className="truncate text-base font-bold tracking-tight">コールトラッカー</span>
           </span>
         </div>
 
