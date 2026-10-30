@@ -63,8 +63,9 @@ async function checkAndSave(rows: Row[], summary: Record<string, number>) {
 // まとめて判定する（管理者のみ）。
 //   mode "unchecked" … まだ判定していない（URLがある）リードを順に
 //   mode "all"       … 全件をやり直す（cursor より後のIDから順に）
+//   mode "failed"    … 「取得失敗」だけを、もう一度判定する（一時的な接続の失敗を拾い直す）
 //   mode "private"   … 「非公開」と判定済みのものだけを、WordPressの手がかりつきでやり直す
-export async function runPhpCheckBatch(mode: "unchecked" | "all" | "private", cursor: string | null): Promise<PhpBatchResult> {
+export async function runPhpCheckBatch(mode: "unchecked" | "all" | "private" | "failed", cursor: string | null): Promise<PhpBatchResult> {
   const me = await getCurrentProfile();
   if (!me || !canManageMembers(me)) throw new Error("この操作は管理者のみ可能です。");
   const supabase = await createClient();
@@ -73,6 +74,7 @@ export async function runPhpCheckBatch(mode: "unchecked" | "all" | "private", cu
   if (mode === "unchecked") q = q.is("php_checked_at", null);
   else {
     if (mode === "private") q = q.eq("php_status", "非公開");
+    if (mode === "failed") q = q.eq("php_status", "取得失敗");
     if (cursor) q = q.gt("id", cursor);
   }
   const { data, error } = await q;
@@ -86,6 +88,7 @@ export async function runPhpCheckBatch(mode: "unchecked" | "all" | "private", cu
   if (mode === "unchecked") remQ = remQ.is("php_checked_at", null);
   else {
     if (mode === "private") remQ = remQ.eq("php_status", "非公開");
+    if (mode === "failed") remQ = remQ.eq("php_status", "取得失敗");
     if (rows.length > 0) remQ = remQ.gt("id", rows[rows.length - 1].id);
   }
   const { count } = await remQ;

@@ -15,14 +15,14 @@ export default function PhpCheckClient({ overview: initial }: { overview: PhpOve
   const [message, setMessage] = useState("");
   const stopRef = useRef(false);
 
-  async function run(mode: "unchecked" | "all" | "private") {
+  async function run(mode: "unchecked" | "all" | "private" | "failed") {
     if (mode === "all" && !window.confirm("判定済みも含めて、全件をやり直します。よろしいですか？")) return;
     stopRef.current = false;
     setRunning(true);
     setError("");
     setMessage("");
     setDone(0);
-    setTarget(mode === "unchecked" ? overview.unchecked : mode === "private" ? (overview.byStatus["非公開"] ?? 0) : overview.withUrl);
+    setTarget(mode === "unchecked" ? overview.unchecked : mode === "private" ? (overview.byStatus["非公開"] ?? 0) : mode === "failed" ? (overview.byStatus["取得失敗"] ?? 0) : overview.withUrl);
     let cursor: string | null = null;
     let total = 0;
     let fails = 0;
@@ -98,6 +98,9 @@ export default function PhpCheckClient({ overview: initial }: { overview: PhpOve
           </button>
           <button type="button" className={btnSecondaryCls} disabled={running || (overview.byStatus["非公開"] ?? 0) === 0} onClick={() => run("private")}>
             非公開をWordPressの手がかりで再判定
+          </button>
+          <button type="button" className={btnSecondaryCls} disabled={running || (overview.byStatus["取得失敗"] ?? 0) === 0} onClick={() => run("failed")}>
+            取得失敗だけ再判定
           </button>
           <button type="button" className={btnSecondaryCls} disabled={running} onClick={() => run("all")}>
             全件をやり直す
