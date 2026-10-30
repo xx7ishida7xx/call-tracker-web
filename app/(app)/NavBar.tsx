@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
-export type IconName = "list" | "chart" | "users" | "upload" | "target" | "mail" | "doc";
+export type IconName = "list" | "chart" | "users" | "upload" | "target" | "mail" | "doc" | "building" | "phone" | "code";
 
 // badge：項目の右に赤い数字で出す件数（未読のメッセージなど。0や未指定なら出さない）
 export type NavItem = { href: string; label: string; icon: IconName; group?: string; badge?: number };
@@ -65,6 +65,24 @@ function Icon({ name, className }: { name: IconName; className?: string }) {
           <path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8l-5-5ZM14 3v5h5M9 13h6M9 17h6" />
         </svg>
       );
+    case "building":
+      return (
+        <svg {...common}>
+          <path d="M4 21V5a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v16M16 9h2a2 2 0 0 1 2 2v10M2 21h20M8 7h4M8 11h4M8 15h4" />
+        </svg>
+      );
+    case "phone":
+      return (
+        <svg {...common}>
+          <path d="M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2Z" />
+        </svg>
+      );
+    case "code":
+      return (
+        <svg {...common}>
+          <path d="m8 8-5 4 5 4M16 8l5 4-5 4M14 5l-4 14" />
+        </svg>
+      );
     case "target":
       return (
         <svg {...common}>
@@ -98,11 +116,11 @@ export default function Sidebar({ items }: { items: NavItem[] }) {
               href={item.href}
               className={
                 active
-                  ? "flex items-center gap-3 rounded-lg bg-orange-500/15 px-3 py-3 text-[15px] font-semibold text-orange-300"
-                  : "flex items-center gap-3 rounded-lg px-3 py-3 text-[15px] font-medium text-slate-300 transition hover:bg-slate-800 hover:text-white"
+                  ? "flex items-center gap-3 rounded-lg bg-orange-500/15 px-3 py-3 text-base font-semibold text-orange-300"
+                  : "flex items-center gap-3 rounded-lg px-3 py-3 text-base font-medium text-slate-300 transition hover:bg-slate-800 hover:text-white"
               }
             >
-              <Icon name={item.icon} className={`h-5 w-5 shrink-0 ${active ? "text-orange-400" : "text-slate-400"}`} />
+              <Icon name={item.icon} className={`h-[22px] w-[22px] shrink-0 ${active ? "text-orange-400" : "text-slate-400"}`} />
               {item.label}
               <Badge count={item.badge} className="ml-auto" />
             </Link>

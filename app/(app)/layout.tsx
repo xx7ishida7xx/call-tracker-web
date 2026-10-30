@@ -28,9 +28,9 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   // 「管理者メニュー」はオーナー・管理者だけに表示されるグループです。
   // スタッフ用の画面と管理者用の画面がサイドバー上でひと目で区別できるようにしています。
   const navItems: NavItem[] = [
-    { href: "/leads", label: "リード一覧", icon: "list" },
+    { href: "/leads", label: "リード一覧", icon: "building" },
     { href: "/goals", label: "目標・稼働日", icon: "target" },
-    { href: "/calls", label: "コール履歴", icon: "list" },
+    { href: "/calls", label: "コール履歴", icon: "phone" },
     { href: "/apo", label: "アポ表", icon: "doc" },
     ...(showMessages
       ? [{ href: "/messages", label: "自分宛のメッセージ", icon: "mail" as const, badge: unreadMessages }]
@@ -40,7 +40,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       ? [
           { href: "/dashboard", label: "ダッシュボード", icon: "chart" as const, group: "管理者メニュー" },
           { href: "/members", label: "メンバー管理", icon: "users" as const, group: "管理者メニュー" },
-          { href: "/php-check", label: "PHP判定", icon: "list" as const, group: "管理者メニュー" },
+          { href: "/php-check", label: "PHP判定", icon: "code" as const, group: "管理者メニュー" },
         ]
       : []),
   ];
@@ -50,7 +50,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   return (
     <div className="min-h-screen bg-orange-50 sm:flex">
       {/* デスクトップ：左側の縦型ナビゲーション（濃色） */}
-      <aside className="hidden sm:sticky sm:top-0 sm:flex sm:h-screen sm:w-64 sm:shrink-0 sm:flex-col sm:bg-slate-900">
+      <aside className="hidden sm:sticky sm:top-0 sm:flex sm:h-screen sm:w-[17rem] sm:shrink-0 sm:flex-col sm:bg-slate-900">
         <div className="flex min-w-0 items-center gap-2 px-5 py-5">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
