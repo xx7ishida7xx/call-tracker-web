@@ -15,7 +15,7 @@ import { jstDateKey } from "@/lib/format";
 //
 // 件数が多い（15,000件超）ため、Supabase/PostgRESTの1回あたりの取得上限
 // （既定1,000件）を超えないよう、rangeで区切って繰り返し取得する。
-export async function GET() {
+export async function GET(request: Request) {
   const me = await getCurrentProfile();
   if (!me) {
     return NextResponse.json({ error: "ログインが必要です。" }, { status: 401 });
@@ -25,6 +25,8 @@ export async function GET() {
   }
 
   const supabase = await createClient();
+  // ?php=1 のとき：営業用に、PHPが古い・要更新のリードだけを、PHPの判定つきで書き出す
+  const phpOnly = new URL(request.url).searchParams.get("php") === "1";
 
   type ExportRow = {
     company: string;
@@ -37,17 +39,23 @@ export async function GET() {
     genre: string;
     subgenre: string;
     hp_status: string;
+    php_version: string;
+    php_status: string;
+    php_note: string;
+    php_checked_at: string | null;
     assigned: { name: string; display_name: string | null; email: string } | { name: string; display_name: string | null; email: string }[] | null;
   };
 
   const PAGE_SIZE = 1000;
   const allRows: ExportRow[] = [];
   for (let from = 0; ; from += PAGE_SIZE) {
-    const { data, error } = await supabase
+    let q = supabase
       .from("leads")
       .select(
-        "company,pref,address,phone,email,url,cms,genre,subgenre,hp_status,assigned:profiles!leads_assigned_to_fkey(name,display_name,email)"
-      )
+        "company,pref,address,phone,email,url,cms,genre,subgenre,hp_status,php_version,php_status,php_note,php_checked_at,assigned:profiles!leads_assigned_to_fkey(name,display_name,email)"
+      );
+    if (phpOnly) q = q.in("php_status", ["サポート終了", "推定古い", "要更新"]);
+    const { data, error } = await q
       .order("created_at", { ascending: true })
       // 同じ登録日時の行の並びを固定する（1,000件ずつ取得するため、並びが揺れると重複・欠落が起きる）
       .order("id", { ascending: true })
@@ -61,9 +69,10 @@ export async function GET() {
   }
 
   const headerRow = ["会社名", "都道府県", "住所", "電話番号", "メールアドレス", "URL", "元CMS", "業種", "業種詳細", "担当者", "HPの状態"];
+  if (phpOnly) headerRow.push("PHP判定", "PHPバージョン", "判定の理由", "確認日");
   const csvRows = allRows.map((r) => {
     const assignedProfile = Array.isArray(r.assigned) ? r.assigned[0] : r.assigned;
-    return [
+    const row = [
       r.company,
       r.pref,
       r.address,
@@ -76,10 +85,12 @@ export async function GET() {
       assignedProfile ? nameFor(assignedProfile) : "",
       r.hp_status,
     ];
+    if (phpOnly) row.push(r.php_status, r.php_version, r.php_note, r.php_checked_at ? jstDateKey(r.php_checked_at) : "");
+    return row;
   });
 
   const csvText = rowsToCsvText(headerRow, csvRows);
-  const filename = `leads_export_${jstDateKey().replace(/-/g, "")}.csv`;
+  const filename = `${phpOnly ? "leads_php_export" : "leads_export"}_${jstDateKey().replace(/-/g, "")}.csv`;
 
   return new NextResponse(csvText, {
     status: 200,

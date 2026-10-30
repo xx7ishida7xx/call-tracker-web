@@ -86,9 +86,14 @@ export default function PhpCheckClient({ overview: initial }: { overview: PhpOve
             </span>
           ))}
         </div>
-        <Link href="/leads" className="text-sm text-orange-700 underline">
-          リード一覧で見る（「PHP判定」で絞り込み）
-        </Link>
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm">
+          <Link href="/leads" className="text-orange-700 underline">
+            リード一覧で見る（「PHP判定」で絞り込み）
+          </Link>
+          <a href="/leads-export?php=1" className="text-orange-700 underline">
+            営業用CSVを書き出す（サポート終了・推定古い・要更新のリードだけ）
+          </a>
+        </div>
       </div>
 
       <div className={`${cardCls} space-y-3 p-4`}>
