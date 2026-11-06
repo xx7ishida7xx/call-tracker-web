@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentProfile } from "@/lib/auth";
+import { attachExtraLeaders } from "@/lib/extraLeaders";
 import {
   nameFor,
   LEAD_STATUSES,
@@ -14,6 +15,7 @@ import {
   ACQUISITION_DESIRE_LABEL,
   APO_KIN_STATUS,
   canManageMembers,
+  isLeaderOf,
   isGuestRole,
   type Profile,
 } from "@/lib/types";
@@ -105,9 +107,19 @@ export default async function LeadsPage({ searchParams }: { searchParams: Promis
   const to = from + PAGE_SIZE - 1;
 
   let roster: Profile[] = [];
-  if (canManage) {
+  // 「担当者」「コール者」の選択肢。管理者は全員、それ以外（代理店のリーダー・担当者など）は
+  // 自分と、自分がリーダーを務めるメンバーだけ（自分の名前が出ないと再コールの検索ができないため）
+  let filterRoster: Profile[] = [];
+  {
     const { data: rosterData } = await supabase.from("profiles").select("*").order("role");
-    roster = (rosterData as Profile[]) ?? [];
+    const all = await attachExtraLeaders(supabase, (rosterData as Profile[]) ?? []);
+    if (canManage) {
+      roster = all;
+      filterRoster = all;
+    } else {
+      filterRoster = all.filter((p) => p.id === me.id || isLeaderOf(me.id, p));
+      if (!filterRoster.some((p) => p.id === me.id)) filterRoster = [me, ...filterRoster];
+    }
   }
 
   let leads: LeadRow[] = [];
@@ -282,12 +294,12 @@ export default async function LeadsPage({ searchParams }: { searchParams: Promis
           </FilterGroup>
 
           <FilterGroup title="コール履歴">
-            {canManage && (
+            {filterRoster.length > 0 && (
               <label className="flex flex-col gap-1 text-[13.7px] font-semibold text-slate-500">
                 コール者
                 <select name="caller" defaultValue={sp.caller || ""} className={`w-48 ${inputCls}`}>
                   <option value="">未選択</option>
-                  {roster.map((r) => (
+                  {filterRoster.map((r) => (
                     <option key={r.id} value={r.id}>
                       {nameFor(r)}
                     </option>
@@ -423,12 +435,12 @@ export default async function LeadsPage({ searchParams }: { searchParams: Promis
                 ))}
               </select>
             </label>
-            {canManage && (
+            {filterRoster.length > 0 && (
               <label className="flex flex-col gap-1 text-[13.7px] font-semibold text-slate-500">
                 担当者
                 <select name="assignee" defaultValue={sp.assignee || ""} className={inputCls}>
                   <option value="">すべて</option>
-                  {roster.map((r) => (
+                  {filterRoster.map((r) => (
                     <option key={r.id} value={r.id}>
                       {nameFor(r)}
                     </option>
@@ -493,7 +505,7 @@ export default async function LeadsPage({ searchParams }: { searchParams: Promis
                 {leads.map((lead) => (
                   <tr key={lead.id} className="border-b border-slate-100 last:border-0 hover:bg-orange-50/40">
                     <td className="px-4 py-2.5 align-top">
-                      <Link href={leadHref(lead.id)} className="font-medium text-slate-900 hover:text-orange-600 hover:underline">
+                      <Link href={leadHref(lead.id)} target="_blank" rel="noopener" title="新しいタブで開きます" className="font-medium text-slate-900 hover:text-orange-600 hover:underline">
                         {lead.company || "（会社名未登録）"}
                       </Link>
                       {unreadLeadIds.has(lead.id) && (
